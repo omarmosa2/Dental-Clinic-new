@@ -30,7 +30,7 @@ interface AddPatientDialogProps {
 interface PatientFormData {
   full_name: string
   gender: 'male' | 'female'
-  age: number
+  age: number | string
   patient_number?: number
   patient_condition?: string
   allergies?: string
@@ -82,6 +82,20 @@ export default function AddPatientDialog({ open, onOpenChange }: AddPatientDialo
       return
     }
 
+    // Check for duplicate patient name
+    const existingPatientByName = patients.find(patient =>
+      patient.full_name?.toLowerCase().trim() === data.full_name?.toLowerCase().trim()
+    )
+
+    if (existingPatientByName) {
+      toast({
+        title: "خطأ في الاسم",
+        description: `يوجد مريض آخر بنفس الاسم "${data.full_name}". يرجى اختيار اسم مختلف أو إضافة معلومات إضافية للتمييز.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     // Check for duplicate patient number
     if (data.patient_number) {
       const existingPatient = patients.find(patient =>
@@ -106,7 +120,7 @@ export default function AddPatientDialog({ open, onOpenChange }: AddPatientDialo
       const patientData = {
         ...data,
         serial_number: serialNumber,
-        age: Number(data.age), // Ensure age is a number
+        age: parseFloat(data.age.toString()), // Ensure age is a number (supports decimals)
         date_added: data.date_added || new Date().toISOString(), // Ensure date_added is included
       }
 
@@ -154,7 +168,25 @@ export default function AddPatientDialog({ open, onOpenChange }: AddPatientDialo
                 الاسم الكامل *
               </label>
               <Input
-                {...register('full_name', { required: 'الاسم الكامل مطلوب' })}
+                {...register('full_name', { 
+                  required: 'الاسم الكامل مطلوب',
+                  validate: (value) => {
+                    if (!value) return 'الاسم الكامل مطلوب'
+                    const trimmedValue = value.trim()
+                    if (trimmedValue.length < 2) return 'الاسم يجب أن يكون على الأقل حرفين'
+                    
+                    // Check for duplicate names
+                    const existingPatient = patients.find(patient =>
+                      patient.full_name?.toLowerCase().trim() === trimmedValue.toLowerCase()
+                    )
+                    
+                    if (existingPatient) {
+                      return `يوجد مريض آخر بنفس الاسم "${trimmedValue}". يرجى اختيار اسم مختلف.`
+                    }
+                    
+                    return true
+                  }
+                })}
                 placeholder="أدخل الاسم الكامل"
               />
               {errors.full_name && (
@@ -189,15 +221,25 @@ export default function AddPatientDialog({ open, onOpenChange }: AddPatientDialo
                 </label>
                 <Input
                   type="number"
-                  min="1"
+                  min="0.1"
                   max="120"
+                  step="0.1"
                   {...register('age', {
                     required: 'العمر مطلوب',
-                    min: { value: 1, message: 'العمر يجب أن يكون أكبر من 0' },
-                    max: { value: 120, message: 'العمر يجب أن يكون أقل من 120' }
+                    validate: (value) => {
+                      if (!value) return 'العمر مطلوب'
+                      const numValue = parseFloat(value)
+                      if (isNaN(numValue)) return 'العمر يجب أن يكون رقماً صحيحاً'
+                      if (numValue <= 0) return 'العمر يجب أن يكون أكبر من 0'
+                      if (numValue > 120) return 'العمر يجب أن يكون أقل من 120'
+                      return true
+                    }
                   })}
                   placeholder="أدخل العمر"
                 />
+                <p className="text-xs text-muted-foreground">
+                  يمكن إدخال العمر بالأرقام العشرية (مثل: 2.5 سنة)
+                </p>
                 {errors.age && (
                   <p className="text-sm text-destructive">{errors.age.message}</p>
                 )}

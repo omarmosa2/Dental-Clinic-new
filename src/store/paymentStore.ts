@@ -356,11 +356,11 @@ export const usePaymentStore = create<PaymentStore>()(
         const total = payments
           .filter(p => p.status === 'completed' || p.status === 'partial')
           .reduce((sum, payment) => {
-            // استخدام amount (مبلغ الدفعة الحالية) وليس amount_paid (إجمالي المدفوع للموعد)
-            const amount = Number(payment.amount)
+            // استخدام total_amount (المبلغ بعد الخصم والضريبة) بدلاً من amount (المبلغ الأصلي)
+            const amount = Number(payment.total_amount || payment.amount)
 
             if (isNaN(amount) || !isFinite(amount)) {
-              console.warn('Invalid payment amount:', payment.amount, 'for payment:', payment.id)
+              console.warn('Invalid payment amount:', payment.total_amount || payment.amount, 'for payment:', payment.id)
               return sum
             }
             return sum + amount
@@ -496,12 +496,12 @@ export const usePaymentStore = create<PaymentStore>()(
               }
 
               const month = paymentDate.toISOString().slice(0, 7) // YYYY-MM
-              // للمدفوعات المكتملة والجزئية: استخدم amount (المبلغ المدفوع في هذه الدفعة)
+              // للمدفوعات المكتملة والجزئية: استخدم total_amount (المبلغ بعد الخصم والضريبة)
               // هذا يتطابق مع منطق التصدير ويعكس القيم الحقيقية المدفوعة
-              const amount = Number(payment.amount)
+              const amount = Number(payment.total_amount || payment.amount)
 
               if (isNaN(amount) || !isFinite(amount)) {
-                console.warn('Invalid payment amount for monthly revenue:', payment.amount, 'for payment:', payment.id)
+                console.warn('Invalid payment amount for monthly revenue:', payment.total_amount || payment.amount, 'for payment:', payment.id)
                 return
               }
 
@@ -530,13 +530,13 @@ export const usePaymentStore = create<PaymentStore>()(
           .filter(p => p.status === 'completed' || p.status === 'partial')
           .forEach(payment => {
             const method = payment.payment_method || 'unknown'
-            // For partial payments, use amount_paid instead of amount
+            // For partial payments, use amount_paid instead of amount, otherwise use total_amount
             const amount = payment.status === 'partial' && payment.amount_paid !== undefined
               ? Number(payment.amount_paid)
-              : Number(payment.amount)
+              : Number(payment.total_amount || payment.amount)
 
             if (isNaN(amount) || !isFinite(amount)) {
-              console.warn('Invalid payment amount for method stats:', payment.amount, 'for payment:', payment.id)
+              console.warn('Invalid payment amount for method stats:', payment.total_amount || payment.amount, 'for payment:', payment.id)
               return
             }
 

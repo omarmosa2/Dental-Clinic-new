@@ -11,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useAppointmentStore } from '@/store/appointmentStore'
 import { usePatientStore } from '@/store/patientStore'
+import { useDentalTreatmentStore } from '@/store/dentalTreatmentStore'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatDateTime, formatTime, getStatusColor } from '@/lib/utils'
+import { getTreatmentByValue } from '@/data/teethData'
 import { useRealTimeSync } from '@/hooks/useRealTimeSync'
 import { useRealTimeTableSync } from '@/hooks/useRealTimeTableSync'
 import { Calendar, Plus, ChevronLeft, ChevronRight, Clock, User, RefreshCw, Download, Table, Search, Filter, X, CalendarDays } from 'lucide-react'
@@ -49,6 +51,11 @@ const getStatusInArabic = (status: string) => {
   }
 }
 
+const getTreatmentDisplayName = (treatmentType: string) => {
+  const treatment = getTreatmentByValue(treatmentType)
+  return treatment?.label || treatmentType
+}
+
 export default function Appointments() {
   // Enable real-time synchronization for automatic updates
   useRealTimeSync()
@@ -70,8 +77,10 @@ export default function Appointments() {
   } = useAppointmentStore()
 
   const { patients, loadPatients } = usePatientStore()
+  const { loadToothTreatmentsByAppointment } = useDentalTreatmentStore()
   const { toast } = useToast()
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [appointmentTreatments, setAppointmentTreatments] = useState<{ [appointmentId: string]: any[] }>({})
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -91,6 +100,29 @@ export default function Appointments() {
     loadAppointments()
     loadPatients()
   }, [loadAppointments, loadPatients])
+
+  // Load treatments for each appointment
+  useEffect(() => {
+    const loadTreatmentsForAppointments = async () => {
+      const treatmentsMap: { [appointmentId: string]: any[] } = {}
+      
+      for (const appointment of appointments) {
+        try {
+          const treatments = await loadToothTreatmentsByAppointment(appointment.id)
+          treatmentsMap[appointment.id] = treatments
+        } catch (error) {
+          console.error(`Error loading treatments for appointment ${appointment.id}:`, error)
+          treatmentsMap[appointment.id] = []
+        }
+      }
+      
+      setAppointmentTreatments(treatmentsMap)
+    }
+
+    if (appointments.length > 0) {
+      loadTreatmentsForAppointments()
+    }
+  }, [appointments, loadToothTreatmentsByAppointment])
 
   // Check for search result navigation
   useEffect(() => {
@@ -289,6 +321,9 @@ export default function Appointments() {
       }
     }
 
+    // Get treatments for this appointment
+    const treatments = appointmentTreatments[appointment?.id] || []
+
     return (
       <div className="w-full h-full flex flex-col justify-center items-center text-center p-1" dir="rtl">
         <div className={`font-medium text-xs truncate w-full flex items-center justify-center gap-1 ${isDeletedPatient ? 'opacity-60' : ''}`} title={`${patientName} - ${getStatusInArabic(appointment?.status || 'scheduled')}`}>
@@ -298,6 +333,21 @@ export default function Appointments() {
         <div className="text-xs opacity-90" title={timeStr}>
           {timeStr}
         </div>
+        {treatments.length > 0 && (
+          <div className="flex items-center gap-1 mt-1">
+            {treatments.slice(0, 3).map((treatment, idx) => (
+              <div 
+                key={idx}
+                className="w-2 h-2 rounded-full border" 
+                style={{ backgroundColor: treatment.treatment_color }}
+                title={`${treatment.treatment_type} - ${treatment.tooth_name}`}
+              />
+            ))}
+            {treatments.length > 3 && (
+              <span className="text-xs">+{treatments.length - 3}</span>
+            )}
+          </div>
+        )}
       </div>
     )
   }

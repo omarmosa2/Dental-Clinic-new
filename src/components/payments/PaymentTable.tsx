@@ -17,7 +17,6 @@ import {
   Edit,
   Trash2,
   Printer,
-  User,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -72,9 +71,8 @@ export default function PaymentTable({
     if (payment.patient?.full_name) {
       return payment.patient.full_name
     }
-    if (payment.patient?.first_name || payment.patient?.last_name) {
-      return `${payment.patient.first_name || ''} ${payment.patient.last_name || ''}`.trim()
-    }
+    // Note: Patient interface uses full_name only
+    return payment.patient?.full_name || 'مريض غير محدد'
 
     // Fallback to patient map lookup
     const patient = patientMap.get(payment.patient_id)
@@ -358,14 +356,14 @@ export default function PaymentTable({
                           )
                         })()}
 
-                        {payment.appointment_total_cost && (
+                        {payment.total_amount_due && (
                           <div className="text-xs text-muted-foreground">
-                            تكلفة: {formatCurrency(payment.appointment_total_cost)}
+                            تكلفة: {formatCurrency(payment.total_amount_due)}
                           </div>
                         )}
-                        {payment.appointment_remaining_balance !== undefined && payment.appointment_remaining_balance > 0 && (
+                        {payment.remaining_balance !== undefined && payment.remaining_balance > 0 && (
                           <div className="text-xs text-orange-600 dark:text-orange-400">
-                            متبقي: {formatCurrency(payment.appointment_remaining_balance)}
+                            متبقي: {formatCurrency(payment.remaining_balance)}
                           </div>
                         )}
                       </div>
@@ -376,69 +374,58 @@ export default function PaymentTable({
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="space-y-1">
-                      <div className="font-medium text-lg">
-                        {formatCurrency(payment.amount)}
+                    <div className="space-y-2">
+                      {/* إجمالي المبلغ المدفوع */}
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground arabic-enhanced">
+                          إجمالي المبلغ المدفوع:
+                        </div>
+                        <div className="font-medium text-lg text-green-600 dark:text-green-400">
+                          {formatCurrency(payment.total_amount || payment.amount)}
+                        </div>
                       </div>
-                      {payment.tooth_treatment_id ? (
-                        // للمدفوعات المرتبطة بعلاج
-                        <>
-                          {payment.treatment_total_cost && (
-                            <div className="text-xs text-muted-foreground">
-                              من أصل {formatCurrency(payment.treatment_total_cost)}
-                            </div>
-                          )}
-                          {payment.treatment_total_paid && (
-                            <div className="text-xs text-blue-600 dark:text-blue-400">
-                              إجمالي مدفوع: {formatCurrency(payment.treatment_total_paid)}
-                            </div>
-                          )}
-                          {payment.treatment_remaining_balance && payment.treatment_remaining_balance > 0 && (
-                            <div className="text-xs text-orange-600 dark:text-orange-400">
-                              متبقي: {formatCurrency(payment.treatment_remaining_balance)}
-                            </div>
-                          )}
-                        </>
-                      ) : payment.appointment_id ? (
-                        // للمدفوعات المرتبطة بموعد
-                        <>
-                          {payment.total_amount_due && (
-                            <div className="text-xs text-muted-foreground">
-                              من أصل {formatCurrency(payment.total_amount_due)}
-                            </div>
-                          )}
-                          {payment.total_amount_due && payment.amount_paid && (
-                            <div className="text-xs text-blue-600 dark:text-blue-400">
-                              إجمالي مدفوع: {formatCurrency(payment.amount_paid)}
-                            </div>
-                          )}
-                          {payment.remaining_balance && payment.remaining_balance > 0 && (
-                            <div className="text-xs text-orange-600 dark:text-orange-400">
-                              متبقي: {formatCurrency(payment.remaining_balance)}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        // للمدفوعات العامة
-                        <>
-                          {payment.total_amount_due && (
-                            <div className="text-xs text-muted-foreground">
-                              من أصل {formatCurrency(payment.total_amount_due)}
-                            </div>
-                          )}
-                          {payment.total_amount_due && (() => {
-                            // حساب المبلغ المتبقي بشكل صحيح للمدفوعات العامة
-                            const totalDue = payment.total_amount_due || 0
-                            const totalPaid = payment.amount || 0
-                            const remainingBalance = Math.max(0, totalDue - totalPaid)
-                            return remainingBalance > 0 && (
-                              <div className="text-xs text-orange-600 dark:text-orange-400">
-                                متبقي: {formatCurrency(remainingBalance)}
+                      
+                      {/* مبلغ الخصم */}
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground arabic-enhanced">
+                          مبلغ الخصم:
+                        </div>
+                        <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">
+                          {payment.discount_amount && payment.discount_amount > 0 
+                            ? formatCurrency(payment.discount_amount) 
+                            : 'لا يوجد خصم'
+                          }
+                        </div>
+                      </div>
+                      
+                      {/* المبلغ المتبقي (فقط إذا كان موجوداً) */}
+                      {(() => {
+                        let remainingBalance = 0
+                        
+                        if (payment.tooth_treatment_id) {
+                          remainingBalance = payment.treatment_remaining_balance || 0
+                        } else if (payment.appointment_id) {
+                          remainingBalance = payment.remaining_balance || 0
+                        } else {
+                          const totalDue = payment.total_amount_due || 0
+                          const totalPaid = payment.amount || 0
+                          remainingBalance = Math.max(0, totalDue - totalPaid)
+                        }
+                        
+                        if (remainingBalance > 0) {
+                          return (
+                            <div className="space-y-1">
+                              <div className="text-xs text-muted-foreground arabic-enhanced">
+                                المبلغ المتبقي:
                               </div>
-                            )
-                          })()}
-                        </>
-                      )}
+                              <div className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded">
+                                {formatCurrency(remainingBalance)}
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
                     </div>
                   </TableCell>
                   <TableCell className="text-center">

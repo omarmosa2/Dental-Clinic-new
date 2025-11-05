@@ -1,6 +1,10 @@
-import React, { useState, useMemo } from 'react'
-import { Appointment, Patient } from '@/types'
+import React, { useState, useMemo, useEffect } from 'react'
+import { Appointment, Patient, ToothTreatment } from '@/types'
 import { useToast } from '@/hooks/use-toast'
+import { useDentalTreatmentStore } from '@/store/dentalTreatmentStore'
+import { usePaymentStore } from '@/store/paymentStore'
+import { useCurrency } from '@/contexts/CurrencyContext'
+import AppointmentPrintDialog from './AppointmentPrintDialog'
 import {
   Table,
   TableBody,
@@ -28,9 +32,11 @@ import {
   Calendar,
   Clock,
   Search,
-  Filter
+  Filter,
+  Printer
 } from 'lucide-react'
 import { formatDateTime, formatTime, getStatusColor } from '@/lib/utils'
+import { getTreatmentByValue } from '@/data/teethData'
 
 interface AppointmentTableProps {
   appointments: Appointment[]
@@ -55,12 +61,41 @@ export default function AppointmentTable({
   onSelectAppointment
 }: AppointmentTableProps) {
   const { toast } = useToast()
+  const { loadToothTreatmentsByAppointment } = useDentalTreatmentStore()
+  const { getPaymentsByPatient } = usePaymentStore()
+  const { getCurrencySymbol } = useCurrency()
   const [sortField, setSortField] = useState<SortField>('start_time')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [appointmentTreatments, setAppointmentTreatments] = useState<{ [appointmentId: string]: ToothTreatment[] }>({})
+  const [printDialogOpen, setPrintDialogOpen] = useState(false)
+  const [selectedAppointmentForPrint, setSelectedAppointmentForPrint] = useState<any>(null)
+
+  // Load treatments for each appointment
+  useEffect(() => {
+    const loadTreatmentsForAppointments = async () => {
+      const treatmentsMap: { [appointmentId: string]: ToothTreatment[] } = {}
+      
+      for (const appointment of appointments) {
+        try {
+          const treatments = await loadToothTreatmentsByAppointment(appointment.id)
+          treatmentsMap[appointment.id] = treatments
+        } catch (error) {
+          console.error(`Error loading treatments for appointment ${appointment.id}:`, error)
+          treatmentsMap[appointment.id] = []
+        }
+      }
+      
+      setAppointmentTreatments(treatmentsMap)
+    }
+
+    if (appointments.length > 0) {
+      loadTreatmentsForAppointments()
+    }
+  }, [appointments, loadToothTreatmentsByAppointment])
 
   // Create a map of patient IDs to patient objects for quick lookup
   const patientMap = useMemo(() => {
@@ -218,6 +253,297 @@ export default function AppointmentTable({
     }
   }
 
+  const getTreatmentDisplayName = (treatmentType: string) => {
+    const treatment = getTreatmentByValue(treatmentType)
+    return treatment?.label || treatmentType
+  }
+
+  const getStatusInArabic = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      'pending': 'معلق',
+      'in_progress': 'قيد التنفيذ',
+      'completed': 'مكتمل',
+      'cancelled': 'ملغي',
+      'planned': 'مخطط',
+      'paid': 'مدفوع',
+      'unpaid': 'غير مدفوع',
+      'partial': 'مدفوع جزئياً',
+      'refunded': 'مسترد',
+      'active': 'نشط',
+      'inactive': 'غير نشط',
+      'scheduled': 'مجدول',
+      'confirmed': 'مؤكد',
+      'rescheduled': 'معاد جدولته'
+    }
+    return statusMap[status] || status
+  }
+
+  const handlePrintAppointment = (appointment: any) => {
+    setSelectedAppointmentForPrint(appointment)
+    setPrintDialogOpen(true)
+  }
+
+  const handlePrintAppointmentOld = (appointment: any) => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const treatments = appointmentTreatments[appointment.id] || []
+    const patient = patientMap.get(appointment.patient_id)
+    
+    // Get currency symbol from settings
+    const currencySymbol = getCurrencySymbol()
+    
+    // Get payments for this appointment's treatments
+    const treatmentIds = treatments.map(t => t.id)
+    const payments = treatmentIds.flatMap(treatmentId => 
+      getPaymentsByPatient(appointment.patient_id).filter(payment => 
+        payment.tooth_treatment_id === treatmentId
+      )
+    )
+
+    // Get next appointment for this patient
+    const nextAppointment = appointments
+      .filter(apt => apt.patient_id === appointment.patient_id && apt.id !== appointment.id)
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0]
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>طباعة الموعد</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+          body {
+            font-family: 'Arial', sans-serif;
+            direction: rtl;
+            text-align: right;
+            line-height: 1.4;
+            color: #333;
+            background: white;
+            margin: 0;
+            padding: 0;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+          }
+          .clinic-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 8px;
+          }
+          .clinic-info {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 3px;
+          }
+          .appointment-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 20px;
+            text-align: center;
+          }
+          .info-section {
+            margin-bottom: 15px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f9fafb;
+          }
+          .info-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #2563eb;
+            padding-bottom: 5px;
+          }
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #e5e7eb;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #374151;
+            min-width: 120px;
+            font-size: 14px;
+          }
+          .info-value {
+            color: #1f2937;
+            flex: 1;
+            text-align: left;
+            font-size: 14px;
+          }
+          .treatments-list {
+            margin-top: 8px;
+          }
+          .treatment-item {
+            background: white;
+            padding: 8px;
+            margin: 3px 0;
+            border-radius: 4px;
+            border-left: 3px solid #2563eb;
+          }
+          .treatment-name {
+            font-weight: bold;
+            color: #1f2937;
+            font-size: 14px;
+          }
+          .treatment-details {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 3px;
+          }
+          .payments-list {
+            margin-top: 8px;
+          }
+          .payment-item {
+            background: white;
+            padding: 8px;
+            margin: 3px 0;
+            border-radius: 4px;
+            border-left: 3px solid #10b981;
+          }
+          .payment-amount {
+            font-weight: bold;
+            color: #059669;
+            font-size: 14px;
+          }
+          .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+          }
+          .no-data {
+            color: #9ca3af;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+          }
+          .compact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+          }
+          .compact-section {
+            margin-bottom: 10px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="clinic-name">عيادة الأسنان</div>
+          <div class="clinic-info">تقرير الموعد الطبي</div>
+               <div class="clinic-info">تاريخ الطباعة: ${new Date().toLocaleDateString('en-GB')}</div>
+        </div>
+
+        <div class="appointment-title">تقرير الموعد الطبي</div>
+
+        <div class="compact-grid">
+          <div class="info-section compact-section">
+            <div class="info-title">معلومات المريض</div>
+            <div class="info-row">
+              <span class="info-label">اسم المريض:</span>
+              <span class="info-value">${patient?.full_name || 'غير محدد'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">الجنس:</span>
+              <span class="info-value">${patient?.gender === 'male' ? 'ذكر' : patient?.gender === 'female' ? 'أنثى' : 'غير محدد'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">العمر:</span>
+              <span class="info-value">${patient?.age || 'غير محدد'} سنة</span>
+            </div>
+          </div>
+
+          <div class="info-section compact-section">
+            <div class="info-title">تفاصيل الموعد الحالي</div>
+            <div class="info-row">
+              <span class="info-label">تاريخ الموعد:</span>
+              <span class="info-value">${formatDateTime(appointment.start_time)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-title">العلاجات المرتبطة بالموعد</div>
+          ${treatments.length > 0 ? `
+            <div class="treatments-list">
+              ${treatments.map(treatment => `
+                <div class="treatment-item">
+                  <div class="treatment-name">${getTreatmentDisplayName(treatment.treatment_type)}</div>
+                  <div class="treatment-details">
+                    السن: ${treatment.tooth_name} | 
+                    التصنيف: ${treatment.treatment_category} | 
+                    الحالة: ${getStatusInArabic(treatment.treatment_status)} | 
+                    التكلفة: ${treatment.cost || 0} ${currencySymbol}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div class="no-data">لا توجد علاجات مرتبطة بهذا الموعد</div>'}
+        </div>
+
+        <div class="info-section">
+          <div class="info-title">المدفوعات المرتبطة بالعلاجات</div>
+          ${payments.length > 0 ? `
+            <div class="payments-list">
+              ${payments.map(payment => `
+                <div class="payment-item">
+                  <div class="payment-amount">${payment.amount} ${currencySymbol}</div>
+                  <div class="treatment-details">
+                    طريقة الدفع: ${payment.payment_method} | 
+                    تاريخ الدفع: ${formatDateTime(payment.payment_date)} | 
+                    الحالة: ${getStatusInArabic(payment.status)}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div class="no-data">لا توجد مدفوعات مرتبطة بهذا الموعد</div>'}
+        </div>
+
+        ${nextAppointment ? `
+        <div class="info-section">
+          <div class="info-title">الموعد القادم</div>
+          <div class="info-row">
+            <span class="info-label">تاريخ الموعد القادم:</span>
+            <span class="info-value">${formatDateTime(nextAppointment.start_time)}</span>
+          </div>
+        </div>
+        ` : '<div class="info-section"><div class="no-data">لا يوجد موعد قادم مجدول</div></div>'}
+
+        <div class="footer">
+          <p>تم إنشاء هذا التقرير تلقائياً من نظام إدارة العيادة</p>
+          <p>للاستفسارات يرجى التواصل مع العيادة</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+    printWindow.focus()
+    printWindow.print()
+    printWindow.close()
+  }
+
   if (isLoading) {
     return (
       <div className="border rounded-lg" dir="rtl">
@@ -330,6 +656,9 @@ export default function AppointmentTable({
                   <span className="arabic-enhanced font-medium">حالة الموعد</span>
                 </SortableHeader>
                 <TableHead className="text-center min-w-[200px]">
+                  <span className="arabic-enhanced font-medium">العلاجات المرتبطة</span>
+                </TableHead>
+                <TableHead className="text-center min-w-[200px]">
                   <span className="arabic-enhanced font-medium">الاجراءات</span>
                 </TableHead>
               </TableRow>
@@ -373,6 +702,28 @@ export default function AppointmentTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">
+                    <div className="space-y-1">
+                      {appointmentTreatments[appointment.id]?.length > 0 ? (
+                        appointmentTreatments[appointment.id].map((treatment, idx) => (
+                          <div key={idx} className="flex items-center gap-2 justify-center">
+                            <div 
+                              className="w-3 h-3 rounded-full border-2" 
+                              style={{ backgroundColor: treatment.treatment_color }}
+                              title={`السن ${treatment.tooth_name}`}
+                            />
+                            <span className="text-xs arabic-enhanced" title={treatment.treatment_type}>
+                              {getTreatmentDisplayName(treatment.treatment_type)}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-xs text-muted-foreground arabic-enhanced">
+                          لا توجد علاجات مرتبطة
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1 flex-wrap">
                       <Button
                         variant="ghost"
@@ -385,7 +736,7 @@ export default function AppointmentTable({
                         }}
                       >
                         <Edit className="w-4 h-4 ml-1" />
-                        <span className="text-xs arabic-enhanced">تعديل</span>
+                        {/* <span className="text-xs arabic-enhanced">تعديل</span> */}
                       </Button>
                       <Button
                         variant="ghost"
@@ -398,7 +749,20 @@ export default function AppointmentTable({
                         }}
                       >
                         <Trash2 className="w-4 h-4 ml-1" />
-                        <span className="text-xs arabic-enhanced">حذف</span>
+                        {/* <span className="text-xs arabic-enhanced">حذف</span> */}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="action-btn-print"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handlePrintAppointment(appointment)
+                        }}
+                      >
+                        <Printer className="w-4 h-4 ml-1" />
+                        {/* <span className="text-xs arabic-enhanced">طباعة</span> */}
                       </Button>
                       {(appointment.patient || patientMap.get(appointment.patient_id)) && (
                         <Button
@@ -415,7 +779,7 @@ export default function AppointmentTable({
                           }}
                         >
                           <Eye className="w-4 h-4 ml-1" />
-                          <span className="text-xs arabic-enhanced">عرض المريض</span>
+                          {/* <span className="text-xs arabic-enhanced">عرض المريض</span> */}
                         </Button>
                       )}
                     </div>
@@ -500,6 +864,30 @@ export default function AppointmentTable({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Print Dialog */}
+      {selectedAppointmentForPrint && (
+        <AppointmentPrintDialog
+          open={printDialogOpen}
+          onOpenChange={setPrintDialogOpen}
+          appointment={selectedAppointmentForPrint}
+          treatments={appointmentTreatments[selectedAppointmentForPrint.id] || []}
+          payments={(() => {
+            const treatments = appointmentTreatments[selectedAppointmentForPrint.id] || []
+            const treatmentIds = treatments.map(t => t.id)
+            return treatmentIds.flatMap(treatmentId => 
+              getPaymentsByPatient(selectedAppointmentForPrint.patient_id).filter(payment => 
+                payment.tooth_treatment_id === treatmentId
+              )
+            )
+          })()}
+          nextAppointment={appointments
+            .filter(apt => apt.patient_id === selectedAppointmentForPrint.patient_id && apt.id !== selectedAppointmentForPrint.id)
+            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0]
+          }
+          patient={patientMap.get(selectedAppointmentForPrint.patient_id)}
+        />
       )}
     </div>
   )

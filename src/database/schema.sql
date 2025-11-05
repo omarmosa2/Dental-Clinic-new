@@ -216,13 +216,6 @@ INSERT OR IGNORE INTO treatments (id, name, description, default_cost, duration_
 -- فينير
 ('veneer', 'فينير', 'قشور خزفية رقيقة للأسنان الأمامية', 800.00, 120, 'التعويضات');
 
--- Insert default labs
-INSERT OR IGNORE INTO labs (id, name, contact_info, address) VALUES
-('lab_1', 'مخبر الأسنان المتقدم', '0123456789', 'شارع الملك فهد، الرياض'),
-('lab_2', 'مخبر الابتسامة الذهبية', '0987654321', 'شارع العليا، الرياض'),
-('lab_3', 'مخبر التعويضات الحديث', '0555123456', 'حي النخيل، جدة'),
-('lab_4', 'مخبر الزركونيا المتخصص', '0444987654', 'شارع الأمير سلطان، الدمام'),
-('lab_5', 'مخبر الأسنان الشامل', '0333456789', 'حي الملقا، الرياض');
 
 -- Performance Indexes
 -- Patient indexes for search optimization

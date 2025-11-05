@@ -143,14 +143,14 @@ export class ComprehensiveExportService {
     const completedPayments = validateAmount(
       payments
         .filter(p => p.status === 'completed')
-        .reduce((sum, payment) => sum + validateAmount(payment.amount), 0)
+        .reduce((sum, payment) => sum + validateAmount(payment.total_amount || payment.amount), 0)
     )
 
     // المدفوعات الجزئية
     const partialPayments = validateAmount(
       payments
         .filter(p => p.status === 'partial')
-        .reduce((sum, payment) => sum + validateAmount(payment.amount), 0)
+        .reduce((sum, payment) => sum + validateAmount(payment.total_amount || payment.amount), 0)
     )
 
     // إجمالي الإيرادات
@@ -857,14 +857,17 @@ export class ComprehensiveExportService {
     // تفاصيل المدفوعات المفلترة
     if (data.payments.length > 0) {
       csv += 'تفاصيل المدفوعات المفلترة\n'
-      csv += 'تاريخ الدفع,اسم المريض,الوصف,المبلغ,المبلغ المدفوع,الرصيد المتبقي,طريقة الدفع,الحالة,رقم الإيصال,ملاحظات\n'
+      csv += 'تاريخ الدفع,اسم المريض,الوصف,المبلغ الإجمالي,مبلغ الخصم,المبلغ بعد الخصم,الرصيد المتبقي,طريقة الدفع,الحالة,رقم الإيصال,ملاحظات\n'
       data.payments.forEach(payment => {
         const paymentDate = formatDate(payment.payment_date)
         const patientName = payment.patient?.full_name || payment.patient?.name || 'غير محدد'
         const description = payment.description || 'غير محدد'
 
         // حساب المبالغ بناءً على نوع الدفعة مثل تقرير الربح والخسائر
-        let totalAmount, amountPaid, remainingBalance
+        let totalAmount, amountPaid, remainingBalance, discountAmount
+
+        // حساب مبلغ الخصم
+        discountAmount = payment.discount_amount && payment.discount_amount > 0 ? formatCurrency(payment.discount_amount) : 'لا يوجد خصم'
 
         if (payment.status === 'partial') {
           // للدفعات الجزئية: المبلغ الإجمالي هو total_amount_due، المدفوع هو amount، المتبقي هو الفرق
@@ -890,7 +893,10 @@ export class ComprehensiveExportService {
         const receiptNumber = payment.receipt_number || ''
         const notes = payment.notes || ''
 
-        csv += `"${paymentDate}","${patientName}","${description}","${totalAmount}","${amountPaid}","${remainingBalance}","${method}","${status}","${receiptNumber}","${notes}"\n`
+        // حساب المبلغ بعد الخصم
+        const amountAfterDiscount = Math.max(0, Number(totalAmount.replace(/[$,]/g, '')) - (discountAmount === 'لا يوجد خصم' ? 0 : Number(discountAmount.replace(/[$,]/g, ''))))
+        
+        csv += `"${paymentDate}","${patientName}","${description}","${totalAmount}","${discountAmount}","${formatCurrency(amountAfterDiscount)}","${remainingBalance}","${method}","${status}","${receiptNumber}","${notes}"\n`
       })
       csv += '\n'
     }
@@ -2235,7 +2241,7 @@ export class ComprehensiveExportService {
     currentRow += 2
 
     // رؤوس الجدول
-    const headers = ['تاريخ الدفع', 'اسم المريض', 'الوصف', 'المبلغ', 'المبلغ المدفوع', 'الرصيد المتبقي', 'طريقة الدفع', 'الحالة', 'رقم الإيصال']
+    const headers = ['تاريخ الدفع', 'اسم المريض', 'الوصف', 'المبلغ الإجمالي', 'مبلغ الخصم', 'المبلغ بعد الخصم', 'الرصيد المتبقي', 'طريقة الدفع', 'الحالة', 'رقم الإيصال']
     headers.forEach((header, index) => {
       const cell = worksheet.getCell(currentRow, index + 1)
       cell.value = header
@@ -2253,7 +2259,10 @@ export class ComprehensiveExportService {
     if (Array.isArray(payments)) {
       payments.forEach((payment: any, index: number) => {
         // حساب المبالغ بناءً على نوع الدفعة مثل تقرير الربح والخسائر
-        let totalAmount, amountPaid, remainingBalance
+        let totalAmount, amountPaid, remainingBalance, discountAmount
+
+        // حساب مبلغ الخصم
+        discountAmount = payment.discount_amount && payment.discount_amount > 0 ? payment.discount_amount : 0
 
         if (payment.status === 'partial') {
           // للدفعات الجزئية: المبلغ الإجمالي هو total_amount_due، المدفوع هو amount، المتبقي هو الفرق
@@ -2272,12 +2281,16 @@ export class ComprehensiveExportService {
           remainingBalance = 0
         }
 
+        // حساب المبلغ بعد الخصم
+        const amountAfterDiscount = Math.max(0, totalAmount - discountAmount)
+
         const rowData = [
           payment.payment_date ? formatDate(payment.payment_date) : '',
           payment.patient?.full_name || 'غير محدد',
           payment.description || 'غير محدد',
           formatCurrency(totalAmount),
-          formatCurrency(amountPaid),
+          discountAmount > 0 ? formatCurrency(discountAmount) : 'لا يوجد خصم',
+          formatCurrency(amountAfterDiscount),
           formatCurrency(remainingBalance),
           payment.payment_method || 'غير محدد',
           this.getPaymentStatusInArabic(payment.status),

@@ -1514,6 +1514,19 @@ ipcMain.handle('db:toothTreatments:getByTooth', async (_, patientId, toothNumber
   }
 })
 
+ipcMain.handle('db:toothTreatments:getByAppointment', async (_, appointmentId) => {
+  try {
+    if (databaseService) {
+      return await databaseService.getToothTreatmentsByAppointment(appointmentId)
+    } else {
+      return []
+    }
+  } catch (error) {
+    console.error('Error getting tooth treatments by appointment:', error)
+    throw error
+  }
+})
+
 ipcMain.handle('db:toothTreatments:create', async (_, treatment) => {
   try {
     if (databaseService) {

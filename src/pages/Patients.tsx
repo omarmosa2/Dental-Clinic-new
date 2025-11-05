@@ -58,7 +58,9 @@ export default function Patients({ onNavigateToTreatments, onNavigateToPayments 
     isLoading,
     error,
     searchQuery,
+    patientNumberSearchQuery,
     setSearchQuery,
+    setPatientNumberSearchQuery,
     setSelectedPatient,
     deletePatient,
     updatePatient,
@@ -208,6 +210,7 @@ export default function Patients({ onNavigateToTreatments, onNavigateToPayments 
   // Clear all filters
   const clearAllFilters = () => {
     setSearchQuery('')
+    setPatientNumberSearchQuery('')
     setGenderFilter('all')
     setAgeRangeFilter('all')
     setDateAddedFilter({start: '', end: ''})
@@ -271,16 +274,30 @@ export default function Patients({ onNavigateToTreatments, onNavigateToPayments 
         <CardContent className="pt-6">
           <div className="space-y-4" dir="rtl">
             <div className="flex items-center gap-4" dir="rtl">
+              {/* مربع البحث العام */}
               <div className="relative flex-1">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="البحث بالاسم أو الهاتف أو البريد الإلكتروني..."
+                  placeholder="البحث في جميع بيانات المريض..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pr-10 text-right"
                   dir="rtl"
                 />
               </div>
+              
+              {/* مربع البحث في رقم المريض */}
+              <div className="relative w-48">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="البحث برقم المريض..."
+                  value={patientNumberSearchQuery}
+                  onChange={(e) => setPatientNumberSearchQuery(e.target.value)}
+                  className="pr-10 text-right"
+                  dir="rtl"
+                />
+              </div>
+              
               <Collapsible open={showFilters} onOpenChange={setShowFilters}>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -292,7 +309,7 @@ export default function Patients({ onNavigateToTreatments, onNavigateToPayments 
                   </Button>
                 </CollapsibleTrigger>
               </Collapsible>
-              {(searchQuery || genderFilter !== 'all' || ageRangeFilter !== 'all' || dateAddedFilter.start || dateAddedFilter.end) && (
+              {(searchQuery || patientNumberSearchQuery || genderFilter !== 'all' || ageRangeFilter !== 'all' || dateAddedFilter.start || dateAddedFilter.end) && (
                 <Button variant="ghost" size="sm" onClick={clearAllFilters}>
                   <X className="w-4 h-4 mr-2" />
                   مسح الكل

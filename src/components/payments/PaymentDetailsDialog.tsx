@@ -112,6 +112,18 @@ export default function PaymentDetailsDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Debug info for discount troubleshooting */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4">
+            <div className="text-xs text-yellow-800 dark:text-yellow-200 font-mono">
+              <div>DEBUG - Discount Amount: {JSON.stringify(payment.discount_amount)}</div>
+              <div>DEBUG - Tax Amount: {JSON.stringify(payment.tax_amount)}</div>
+              <div>DEBUG - Total Amount: {JSON.stringify(payment.total_amount)}</div>
+              <div>DEBUG - Amount: {JSON.stringify(payment.amount)}</div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-6">
           {/* معلومات أساسية */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -136,10 +148,10 @@ export default function PaymentDetailsDialog({
                     <span className="text-sm text-foreground">{patient.phone}</span>
                   </div>
                 )}
-                {patient?.date_of_birth && (
+                {patient?.date_added && (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">تاريخ الميلاد:</span>
-                    <span className="text-sm text-foreground">{formatDate(patient.date_of_birth)}</span>
+                    <span className="text-sm text-muted-foreground">تاريخ التسجيل:</span>
+                    <span className="text-sm text-foreground">{formatDate(patient.date_added)}</span>
                   </div>
                 )}
               </CardContent>
@@ -187,40 +199,71 @@ export default function PaymentDetailsDialog({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {formatAmount(payment.amount)}
+              <div className="space-y-4">
+                {/* إجمالي المبلغ المدفوع */}
+                <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="text-xs text-muted-foreground arabic-enhanced mb-1">
+                    إجمالي المبلغ المدفوع:
                   </div>
-                  <div className="text-sm text-blue-600 dark:text-blue-400 mt-1">المبلغ المدفوع</div>
+                  <div className="font-medium text-2xl text-green-600 dark:text-green-400">
+                    {formatAmount(payment.total_amount || payment.amount)}
+                  </div>
                 </div>
 
-                {payment.discount_amount && payment.discount_amount > 0 && (
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {formatAmount(payment.discount_amount)}
+                {/* تفاصيل الخصم والضريبة */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* مبلغ الخصم */}
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground arabic-enhanced">
+                      مبلغ الخصم:
                     </div>
-                    <div className="text-sm text-green-600 dark:text-green-400 mt-1">الخصم</div>
-                  </div>
-                )}
-
-                {payment.tax_amount && payment.tax_amount > 0 && (
-                  <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
-                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                      {formatAmount(payment.tax_amount)}
+                    <div className={`text-sm px-3 py-2 rounded border ${
+                      payment.discount_amount && payment.discount_amount > 0
+                        ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                        : 'text-muted-foreground bg-muted/30 border-border'
+                    }`}>
+                      {payment.discount_amount && payment.discount_amount > 0
+                        ? formatAmount(payment.discount_amount)
+                        : 'لا يوجد خصم'
+                      }
                     </div>
-                    <div className="text-sm text-orange-600 dark:text-orange-400 mt-1">الضريبة</div>
                   </div>
-                )}
 
-                <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatAmount(
-                      payment.total_amount ||
-                      (payment.amount + (payment.tax_amount || 0) - (payment.discount_amount || 0))
-                    )}
+                  {/* مبلغ الضريبة */}
+                  {payment.tax_amount && payment.tax_amount > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs text-muted-foreground arabic-enhanced">
+                        مبلغ الضريبة:
+                      </div>
+                      <div className="text-sm text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded border border-orange-200 dark:border-orange-800">
+                        {formatAmount(payment.tax_amount)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* تفاصيل إضافية للحساب */}
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground arabic-enhanced mb-1">
+                      المبلغ الأساسي:
+                    </div>
+                    <div className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                      {formatAmount(payment.amount)}
+                    </div>
                   </div>
-                  <div className="text-sm text-purple-600 dark:text-purple-400 mt-1">المبلغ الإجمالي</div>
+
+                  <div className="text-center">
+                    <div className="text-xs text-muted-foreground arabic-enhanced mb-1">
+                      المبلغ الإجمالي:
+                    </div>
+                    <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                      {formatAmount(
+                        payment.total_amount ||
+                        (payment.amount + (payment.tax_amount || 0) - (payment.discount_amount || 0))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -276,11 +319,17 @@ export default function PaymentDetailsDialog({
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">تاريخ الموعد:</span>
-                  <span className="text-sm text-foreground">{formatDate(payment.appointment.appointment_date)}</span>
+                  <span className="text-sm text-foreground">{formatDate(payment.appointment.start_time)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">الوقت:</span>
-                  <span className="text-sm text-foreground">{payment.appointment.appointment_time}</span>
+                  <span className="text-sm text-foreground">
+                    {new Date(payment.appointment.start_time).toLocaleTimeString('ar-SA', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </span>
                 </div>
                 {payment.appointment.notes && (
                   <div className="flex items-start justify-between">

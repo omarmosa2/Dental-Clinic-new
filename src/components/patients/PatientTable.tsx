@@ -51,7 +51,7 @@ interface PatientTableProps {
   onViewPendingInvoice?: (patient: Patient) => void
 }
 
-type SortField = 'full_name' | 'gender' | 'age' | 'phone' | 'patient_condition' | 'date_added'
+type SortField = 'full_name' | 'patient_number' | 'gender' | 'age' | 'phone' | 'patient_condition' | 'date_added'
 type SortDirection = 'asc' | 'desc' | null
 
 export default function PatientTable({
@@ -182,6 +182,15 @@ export default function PatientTable({
         if (aValue == null) return sortDirection === 'asc' ? 1 : -1
         if (bValue == null) return sortDirection === 'asc' ? -1 : 1
 
+        // Special handling for patient_number (numeric sorting)
+        if (sortField === 'patient_number') {
+          const aNum = parseInt(String(aValue)) || 0
+          const bNum = parseInt(String(bValue)) || 0
+          if (aNum < bNum) return sortDirection === 'asc' ? -1 : 1
+          if (aNum > bNum) return sortDirection === 'asc' ? 1 : -1
+          return 0
+        }
+
         // Convert to string for comparison
         aValue = String(aValue).toLowerCase()
         bValue = String(bValue).toLowerCase()
@@ -236,13 +245,13 @@ export default function PatientTable({
           <TableHeader>
             <TableRow>
               <TableHead className="text-center">#</TableHead>
-              <TableHead className="text-center">الاسم الكامل للمريض</TableHead>
-              <TableHead className="text-center">رقم المريض</TableHead>
-              <TableHead className="text-center">الجنس</TableHead>
-              <TableHead className="text-center">العمر</TableHead>
-              <TableHead className="text-center">رقم الهاتف</TableHead>
-              <TableHead className="text-center">حالة المريض</TableHead>
-              <TableHead className="text-center">تاريخ الإضافة</TableHead>
+              <SortableHeader field="full_name">الاسم الكامل للمريض</SortableHeader>
+              <SortableHeader field="patient_number">رقم المريض</SortableHeader>
+              <SortableHeader field="gender">الجنس</SortableHeader>
+              <SortableHeader field="age">العمر</SortableHeader>
+              <SortableHeader field="phone">رقم الهاتف</SortableHeader>
+              <SortableHeader field="patient_condition">حالة المريض</SortableHeader>
+              <SortableHeader field="date_added">تاريخ الإضافة</SortableHeader>
               <TableHead className="text-center">الاجراءات</TableHead>
             </TableRow>
           </TableHeader>
@@ -294,7 +303,7 @@ export default function PatientTable({
                 <span className="arabic-enhanced font-medium text-xs">#</span>
               </TableHead>
               <SortableHeader field="full_name">الاسم الكامل للمريض</SortableHeader>
-              <TableHead className="text-center">رقم المريض</TableHead>
+              <SortableHeader field="patient_number">رقم المريض</SortableHeader>
               <SortableHeader field="gender">الجنس</SortableHeader>
               <SortableHeader field="age">العمر</SortableHeader>
               <SortableHeader field="phone">رقم الهاتف</SortableHeader>
@@ -345,9 +354,9 @@ export default function PatientTable({
                 <SortableHeader field="full_name">
                   <span className="arabic-enhanced font-medium">الاسم الكامل للمريض</span>
                 </SortableHeader>
-                <TableHead className="text-center">
+                <SortableHeader field="patient_number">
                   <span className="arabic-enhanced font-medium">رقم المريض</span>
-                </TableHead>
+                </SortableHeader>
                 <SortableHeader field="gender">
                   <span className="arabic-enhanced font-medium">الجنس</span>
                 </SortableHeader>

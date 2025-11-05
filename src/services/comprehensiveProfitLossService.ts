@@ -89,13 +89,13 @@ export class ComprehensiveProfitLossService {
     const completedPayments = this.validateAmount(
       payments
         .filter(p => p.status === 'completed')
-        .reduce((sum, p) => sum + this.validateAmount(p.amount), 0)
+        .reduce((sum, p) => sum + this.validateAmount(p.total_amount || p.amount), 0)
     )
 
     const partialPayments = this.validateAmount(
       payments
         .filter(p => p.status === 'partial')
-        .reduce((sum, p) => sum + this.validateAmount(p.amount), 0)
+        .reduce((sum, p) => sum + this.validateAmount(p.total_amount || p.amount), 0)
     )
 
     const totalRevenue = completedPayments + partialPayments

@@ -14,6 +14,7 @@ interface DentalTreatmentState {
   loadToothTreatments: () => Promise<void>
   loadToothTreatmentsByPatient: (patientId: string) => Promise<void>
   loadToothTreatmentsByTooth: (patientId: string, toothNumber: number) => Promise<void>
+  loadToothTreatmentsByAppointment: (appointmentId: string) => Promise<ToothTreatment[]>
   createToothTreatment: (treatment: Omit<ToothTreatment, 'id' | 'created_at' | 'updated_at'>) => Promise<ToothTreatment>
   updateToothTreatment: (id: string, updates: Partial<ToothTreatment>) => Promise<void>
   deleteToothTreatment: (id: string) => Promise<void>
@@ -107,6 +108,24 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
         error: error instanceof Error ? error.message : 'Failed to load tooth treatments',
         isLoading: false
       })
+    }
+  },
+
+  loadToothTreatmentsByAppointment: async (appointmentId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const toothTreatments = await window.electronAPI.toothTreatments.getByAppointment(appointmentId)
+      set({
+        toothTreatments,
+        isLoading: false
+      })
+      return toothTreatments
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to load tooth treatments by appointment',
+        isLoading: false
+      })
+      return []
     }
   },
 

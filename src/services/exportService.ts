@@ -2000,7 +2000,7 @@ export class ExportService {
     }, 0)
 
     // Headers - removed patient ID, kept only patient name
-    const headers = ['اسم المريض', 'المبلغ المدفوع', 'المبلغ الإجمالي', 'المبلغ المتبقي', 'الحالة', 'طريقة الدفع', 'تاريخ الدفع', 'ملاحظات']
+    const headers = ['اسم المريض', 'المبلغ الإجمالي', 'مبلغ الخصم', 'المبلغ بعد الخصم', 'المبلغ المتبقي', 'الحالة', 'طريقة الدفع', 'تاريخ الدفع', 'ملاحظات']
     headers.forEach((header, index) => {
       const cell = worksheet.getCell(1, index + 1)
       cell.value = header
@@ -2042,16 +2042,21 @@ export class ExportService {
         remainingAmount = 0
       }
 
+      // حساب مبلغ الخصم والمبلغ بعد الخصم
+      const discountAmount = payment.discount_amount && payment.discount_amount > 0 ? payment.discount_amount : 0
+      const amountAfterDiscount = Math.max(0, treatmentTotalCost - discountAmount)
+      
       worksheet.getCell(row, 1).value = payment.patient_name || ''
-      worksheet.getCell(row, 2).value = formatCurrency(paidAmount)
-      worksheet.getCell(row, 3).value = formatCurrency(treatmentTotalCost)
-      worksheet.getCell(row, 4).value = formatCurrency(remainingAmount)
-      worksheet.getCell(row, 5).value = payment.status === 'completed' ? 'مكتمل' :
+      worksheet.getCell(row, 2).value = formatCurrency(treatmentTotalCost)
+      worksheet.getCell(row, 3).value = discountAmount > 0 ? formatCurrency(discountAmount) : 'لا يوجد خصم'
+      worksheet.getCell(row, 4).value = formatCurrency(amountAfterDiscount)
+      worksheet.getCell(row, 5).value = formatCurrency(remainingAmount)
+      worksheet.getCell(row, 6).value = payment.status === 'completed' ? 'مكتمل' :
                                        payment.status === 'partial' ? 'جزئي' : 'معلق'
-      worksheet.getCell(row, 6).value = payment.payment_method || ''
+      worksheet.getCell(row, 7).value = payment.payment_method || ''
       // Use Gregorian date format instead of Arabic
-      worksheet.getCell(row, 7).value = payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB') : ''
-      worksheet.getCell(row, 8).value = payment.notes || ''
+      worksheet.getCell(row, 8).value = payment.payment_date ? new Date(payment.payment_date).toLocaleDateString('en-GB') : ''
+      worksheet.getCell(row, 9).value = payment.notes || ''
     })
 
     // Add summary rows for pending and remaining balances

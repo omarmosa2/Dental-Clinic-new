@@ -52,6 +52,7 @@ import { usePaymentStore } from '@/store/paymentStore'
 import { usePatientStore } from '@/store/patientStore'
 import { useLabStore } from '@/store/labStore'
 import { useLabOrderStore } from '@/store/labOrderStore'
+import { useAppointmentStore } from '@/store/appointmentStore'
 
 interface MultipleToothTreatmentsProps {
   patientId: string
@@ -83,6 +84,7 @@ export default function MultipleToothTreatments({
   const { patients } = usePatientStore()
   const { labs, loadLabs } = useLabStore()
   const { createLabOrder, updateLabOrder, deleteLabOrder, getLabOrdersByTreatment } = useLabOrderStore()
+  const { appointments, loadAppointments } = useAppointmentStore()
   const [isAddingTreatment, setIsAddingTreatment] = useState(false)
   const [editingTreatment, setEditingTreatment] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('')
@@ -94,6 +96,8 @@ export default function MultipleToothTreatments({
   // متغيرات منفصلة لنموذج تعديل العلاج (ستُستخدم في EditTreatmentFormContent)
   const [selectedLab, setSelectedLab] = useState<string>('')
   const [labCost, setLabCost] = useState<number>(0)
+  // متغيرات لاختيار الموعد
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>('none')
   const [newTreatment, setNewTreatment] = useState<Partial<ToothTreatment>>({
     patient_id: patientId,
     tooth_number: toothNumber,
@@ -107,6 +111,13 @@ export default function MultipleToothTreatments({
   // Treatment Sessions state
   const [treatmentSessions, setTreatmentSessions] = useState<{ [treatmentId: string]: TreatmentSession[] }>({})
   const [selectedTreatmentForSessions, setSelectedTreatmentForSessions] = useState<string | null>(null)
+
+  // Load appointments for this patient
+  useEffect(() => {
+    if (patientId) {
+      loadAppointments()
+    }
+  }, [patientId, loadAppointments])
 
   // Load labs on component mount
   useEffect(() => {
@@ -1062,6 +1073,53 @@ export default function MultipleToothTreatments({
                   )}
                 />
               </div>
+
+              {/* حقل اختيار الموعد */}
+              <div className="space-y-2">
+                <Label className={cn(
+                  "font-medium",
+                  isDarkMode ? "text-blue-200" : "text-blue-800"
+                )}>ربط بالموعد (اختياري)</Label>
+                <Select
+                  value={selectedAppointmentId}
+                  onValueChange={(value) => {
+                    setSelectedAppointmentId(value)
+                    setNewTreatment(prev => ({ ...prev, appointment_id: value === 'none' ? undefined : value }))
+                  }}
+                >
+                  <SelectTrigger className={cn(
+                    "border-2 transition-colors",
+                    isDarkMode
+                      ? "border-blue-800/50 bg-blue-950/30 hover:border-blue-700 focus:border-blue-600"
+                      : "border-blue-200 bg-white hover:border-blue-300 focus:border-blue-500"
+                  )}>
+                    <SelectValue placeholder="اختر موعد (اختياري)" />
+                  </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">لا يوجد موعد مرتبط</SelectItem>
+              {appointments
+                .filter(appointment => appointment.patient_id === patientId)
+                .map((appointment) => (
+                  <SelectItem key={appointment.id} value={appointment.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{formatDate(appointment.start_time)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {appointment.title}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+            </SelectContent>
+                </Select>
+                {selectedAppointmentId && selectedAppointmentId !== 'none' && (
+                  <p className={cn(
+                    "text-xs",
+                    isDarkMode ? "text-blue-300" : "text-blue-600"
+                  )}>
+                    💡 سيتم ربط العلاج بالموعد المحدد
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* حقول المخبر - تظهر فقط لعلاجات التعويضات */}
@@ -1194,6 +1252,7 @@ export default function MultipleToothTreatments({
                 onClick={() => {
                   setIsAddingTreatment(false)
                   setSelectedCategory('')
+                  setSelectedAppointmentId('none')
                   setNewTreatment({
                     patient_id: patientId,
                     tooth_number: toothNumber,
@@ -1328,6 +1387,7 @@ function EditTreatmentFormContent({ treatment, onSave, onCancel }: EditTreatment
   const { patients } = usePatientStore()
   const { labs, loadLabs } = useLabStore()
   const { createLabOrder, getLabOrdersByTreatment, updateLabOrder, deleteLabOrder, loadLabOrders } = useLabOrderStore()
+  const { appointments, loadAppointments } = useAppointmentStore()
   const [editData, setEditData] = useState<Partial<ToothTreatment>>({
     treatment_type: treatment.treatment_type,
     treatment_category: treatment.treatment_category,
@@ -1335,7 +1395,8 @@ function EditTreatmentFormContent({ treatment, onSave, onCancel }: EditTreatment
     cost: treatment.cost,
     start_date: treatment.start_date,
     completion_date: treatment.completion_date,
-    notes: treatment.notes
+    notes: treatment.notes,
+    appointment_id: treatment.appointment_id
   })
 
 
@@ -1345,6 +1406,14 @@ function EditTreatmentFormContent({ treatment, onSave, onCancel }: EditTreatment
   const [labCost, setLabCost] = useState<number>(0)
   const [isLabDataLoaded, setIsLabDataLoaded] = useState(false)
   const [isDataLoaded, setIsDataLoaded] = useState(false) // متتبع لحالة تحميل البيانات
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string>(treatment.appointment_id || 'none')
+
+  // Load appointments for this patient
+  useEffect(() => {
+    if (treatment.patient_id) {
+      loadAppointments()
+    }
+  }, [treatment.patient_id, loadAppointments])
 
   // دالة بسيطة للحصول على طلب المختبر المرتبط بالعلاج
   const getLabOrderForTreatment = async (treatmentId: string) => {
@@ -2030,6 +2099,50 @@ function EditTreatmentFormContent({ treatment, onSave, onCancel }: EditTreatment
             onClick={(e) => e.stopPropagation()}
             data-prevent-shortcuts="true"
           />
+        </div>
+
+        {/* حقل اختيار الموعد */}
+        <div className="space-y-2">
+          <Label>ربط بالموعد (اختياري)</Label>
+          <Select
+            value={selectedAppointmentId}
+            onValueChange={(value) => {
+              setSelectedAppointmentId(value)
+              setEditData(prev => ({ ...prev, appointment_id: value === 'none' ? undefined : value }))
+            }}
+          >
+            <SelectTrigger className={cn(
+              "border-2 transition-colors",
+              isDarkMode
+                ? "border-orange-800/50 bg-orange-950/30 hover:border-orange-700 focus:border-orange-600"
+                : "border-orange-200 bg-white hover:border-orange-300 focus:border-orange-500"
+            )}>
+              <SelectValue placeholder="اختر موعد (اختياري)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">لا يوجد موعد مرتبط</SelectItem>
+              {appointments
+                .filter(appointment => appointment.patient_id === treatment.patient_id)
+                .map((appointment) => (
+                  <SelectItem key={appointment.id} value={appointment.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{formatDate(appointment.start_time)}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {appointment.title}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {selectedAppointmentId && selectedAppointmentId !== 'none' && (
+            <p className={cn(
+              "text-xs",
+              isDarkMode ? "text-orange-300" : "text-orange-600"
+            )}>
+              💡 سيتم ربط العلاج بالموعد المحدد
+            </p>
+          )}
         </div>
       </div>
 

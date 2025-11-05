@@ -29,8 +29,8 @@ ShowUnInstDetails show
 
 ; Modern UI Settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+!define MUI_ICON "assets\icon_2.ico"
+!define MUI_UNICON "assets\icon_2.ico"
 
 ; Welcome Page
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${PRODUCT_NAME} Setup Wizard"

@@ -338,6 +338,7 @@ const electronAPI: ElectronAPI = {
     getAll: () => ipcRenderer.invoke('db:toothTreatments:getAll'),
     getByPatient: (patientId) => ipcRenderer.invoke('db:toothTreatments:getByPatient', patientId),
     getByTooth: (patientId, toothNumber) => ipcRenderer.invoke('db:toothTreatments:getByTooth', patientId, toothNumber),
+    getByAppointment: (appointmentId) => ipcRenderer.invoke('db:toothTreatments:getByAppointment', appointmentId),
     create: (treatment) => ipcRenderer.invoke('db:toothTreatments:create', treatment),
     update: (id, treatment) => ipcRenderer.invoke('db:toothTreatments:update', id, treatment),
     delete: (id) => ipcRenderer.invoke('db:toothTreatments:delete', id),

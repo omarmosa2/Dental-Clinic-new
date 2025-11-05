@@ -2,23 +2,28 @@
 ; Icons and Images Configuration for Installer
 
 ; مسارات الأيقونات
-!define ICON_MAIN "icon.ico"
-!define ICON_UNINSTALL "icon.ico"
-!define ICON_INSTALLER "icon.ico"
+!define ICON_MAIN "assets\icon_2.ico"
+!define ICON_UNINSTALL "assets\icon_2.ico"
+!define ICON_INSTALLER "assets\icon_2.ico"
 
 ; صور المثبت
 !define IMAGE_HEADER "assets\header.bmp"
 !define IMAGE_WIZARD "assets\wizard.bmp"
 !define IMAGE_BANNER "assets\banner.bmp"
 
-; إعدادات الأيقونات
-; إذا لم تتوفر أيقونة صالحة، استخدم أيقونة افتراضية من NSIS
-!undef ICON_MAIN
-!undef ICON_UNINSTALL
-!undef ICON_INSTALLER
-!define ICON_MAIN "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
-!define ICON_UNINSTALL "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
-!define ICON_INSTALLER "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+; إعدادات الأيقونات - استخدام الأيقونات من مجلد assets
+; إذا لم تتوفر أيقونة صالحة، استخدم أيقونة افتراضية من NSIS كبديل
+!if /FileExists "${ICON_MAIN}"
+  ; الأيقونة موجودة، استخدمها
+!else
+  ; الأيقونة غير موجودة، استخدم الأيقونة الافتراضية
+  !undef ICON_MAIN
+  !undef ICON_UNINSTALL
+  !undef ICON_INSTALLER
+  !define ICON_MAIN "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+  !define ICON_UNINSTALL "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+  !define ICON_INSTALLER "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+!endif
 
 Icon "${ICON_INSTALLER}"
 UninstallIcon "${ICON_UNINSTALL}"
@@ -50,7 +55,7 @@ Function CreateIcons
   CreateShortCut "$SMPROGRAMS\DentalClinic - agorracode\DentalClinic - agorracode.lnk" \
                  "$INSTDIR\dentalclinic-agorracode.exe" \
                  "" \
-                 "$INSTDIR\dentalclinic-agorracode.exe" \
+                 "$INSTDIR\assets\icon_2.ico" \
                  0 \
                  SW_SHOWNORMAL \
                  "" \
@@ -60,7 +65,7 @@ Function CreateIcons
   CreateShortCut "$SMPROGRAMS\DentalClinic - agorracode\Uninstall DentalClinic - agorracode.lnk" \
                  "$INSTDIR\uninstall.exe" \
                  "" \
-                 "$INSTDIR\uninstall.exe" \
+                 "$INSTDIR\assets\icon_2.ico" \
                  0 \
                  SW_SHOWNORMAL \
                  "" \
@@ -70,7 +75,7 @@ Function CreateIcons
   CreateShortCut "$SMPROGRAMS\DentalClinic - agorracode\User Guide.lnk" \
                  "$INSTDIR\README.txt" \
                  "" \
-                 "$INSTDIR\README.txt" \
+                 "$INSTDIR\assets\icon_2.ico" \
                  0 \
                  SW_SHOWNORMAL \
                  "" \
@@ -86,7 +91,7 @@ Function CreateIcons
   CreateShortCut "$DESKTOP\DentalClinic - agorracode.lnk" \
                  "$INSTDIR\dentalclinic-agorracode.exe" \
                  "" \
-                 "$INSTDIR\dentalclinic-agorracode.exe" \
+                 "$INSTDIR\assets\icon_2.ico" \
                  0 \
                  SW_SHOWNORMAL \
                  "" \
@@ -96,7 +101,7 @@ Function CreateIcons
   CreateShortCut "$QUICKLAUNCH\DentalClinic - agorracode.lnk" \
                  "$INSTDIR\dentalclinic-agorracode.exe" \
                  "" \
-                 "$INSTDIR\dentalclinic-agorracode.exe" \
+                 "$INSTDIR\assets\icon_2.ico" \
                  0 \
                  SW_SHOWNORMAL \
                  "" \

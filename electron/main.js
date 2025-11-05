@@ -75,7 +75,7 @@ function createWindow() {
     },
     show: false,
     title: 'DentalClinic - agorracode',
-    icon: join(__dirname, '../assets/icon.png'),
+    icon: join(__dirname, '../assets/icon_2.ico'),
     // ✅ إعدادات إضافية للنافذة
     backgroundColor: '#ffffff', // لون خلفية أبيض لتجنب الشاشة السوداء
     // ✅ تحسين الأداء
@@ -2101,6 +2101,19 @@ ipcMain.handle('db:toothTreatments:getByTooth', async (_, patientId, toothNumber
     }
   } catch (error) {
     console.error('Error getting tooth treatments by tooth:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('db:toothTreatments:getByAppointment', async (_, appointmentId) => {
+  try {
+    if (databaseService) {
+      return await databaseService.getToothTreatmentsByAppointment(appointmentId)
+    } else {
+      return []
+    }
+  } catch (error) {
+    console.error('Error getting tooth treatments by appointment:', error)
     throw error
   }
 })

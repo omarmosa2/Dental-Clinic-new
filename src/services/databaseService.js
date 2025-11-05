@@ -4404,6 +4404,26 @@ class DatabaseService {
     return stmt.all(patientId, toothNumber)
   }
 
+  // NEW: Get tooth treatments by appointment ID
+  async getToothTreatmentsByAppointment(appointmentId) {
+    this.ensureConnection()
+    this.ensureToothTreatmentsTableExists()
+
+    const stmt = this.db.prepare(`
+      SELECT tt.*,
+             p.full_name as patient_name,
+             a.title as appointment_title,
+             a.start_time as appointment_start_time,
+             a.end_time as appointment_end_time
+      FROM tooth_treatments tt
+      LEFT JOIN patients p ON tt.patient_id = p.id
+      LEFT JOIN appointments a ON tt.appointment_id = a.id
+      WHERE tt.appointment_id = ?
+      ORDER BY tt.priority ASC, tt.created_at DESC
+    `)
+    return stmt.all(appointmentId)
+  }
+
   async createToothTreatment(treatment) {
     this.ensureConnection()
     this.ensureToothTreatmentsTableExists()

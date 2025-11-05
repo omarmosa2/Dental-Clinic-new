@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { Patient } from '../types'
+import { formatDate } from '../lib/utils'
 
 interface PatientState {
   patients: Patient[]
@@ -8,6 +9,7 @@ interface PatientState {
   isLoading: boolean
   error: string | null
   searchQuery: string
+  patientNumberSearchQuery: string
   filteredPatients: Patient[]
 }
 
@@ -21,6 +23,7 @@ interface PatientActions {
   // UI state
   setSelectedPatient: (patient: Patient | null) => void
   setSearchQuery: (query: string) => void
+  setPatientNumberSearchQuery: (query: string) => void
   clearError: () => void
 
   // Search and filter
@@ -51,6 +54,7 @@ export const usePatientStore = create<PatientStore>()(
       isLoading: false,
       error: null,
       searchQuery: '',
+      patientNumberSearchQuery: '',
       filteredPatients: [],
 
       // Data operations
@@ -208,6 +212,11 @@ export const usePatientStore = create<PatientStore>()(
         get().filterPatients()
       },
 
+      setPatientNumberSearchQuery: (query) => {
+        set({ patientNumberSearchQuery: query })
+        get().filterPatients()
+      },
+
       clearError: () => {
         set({ error: null })
       },
@@ -243,20 +252,70 @@ export const usePatientStore = create<PatientStore>()(
 
       // Local filtering (for real-time search)
       filterPatients: () => {
-        const { patients, searchQuery } = get()
+        const { patients, searchQuery, patientNumberSearchQuery } = get()
 
-        if (searchQuery.trim() === '') {
+        if (searchQuery.trim() === '' && patientNumberSearchQuery.trim() === '') {
           set({ filteredPatients: patients })
           return
         }
 
         const query = searchQuery.toLowerCase()
-        const filtered = patients.filter(patient =>
-          patient.full_name.toLowerCase().includes(query) ||
-          patient.phone?.toLowerCase().includes(query) ||
-          patient.email?.toLowerCase().includes(query) ||
-          patient.serial_number?.toLowerCase().includes(query)
-        )
+        const originalQuery = searchQuery // للحفاظ على النص الأصلي للبحث في الأرقام
+        
+        const filtered = patients.filter(patient => {
+          // البحث في رقم المريض فقط إذا كان هناك بحث في رقم المريض
+          if (patientNumberSearchQuery.trim() !== '') {
+            const patientNumberMatch = String(patient.patient_number || '').includes(patientNumberSearchQuery)
+            return patientNumberMatch
+          }
+          
+          // البحث العام في جميع الحقول
+          if (searchQuery.trim() !== '') {
+            // البحث في جميع الحقول النصية
+            const searchableFields = [
+              patient.full_name,
+              patient.phone,
+              patient.email,
+              patient.serial_number,
+              patient.patient_condition,
+              patient.allergies,
+              patient.medical_conditions,
+              patient.address,
+              patient.notes,
+              String(patient.patient_number || ''),
+              patient.gender === 'male' ? 'ذكر' : 'أنثى',
+              String(patient.age || ''),
+              formatDate(patient.date_added)
+            ]
+            
+            // البحث في الأرقام
+            const numericFields = [
+              String(patient.age || ''),
+              String(patient.patient_number || ''),
+              patient.phone?.replace(/\D/g, ''), // إزالة جميع الرموز غير الرقمية من رقم الهاتف
+              patient.serial_number?.replace(/\D/g, '') // إزالة جميع الرموز غير الرقمية من الرقم التسلسلي
+            ].filter(field => field) // إزالة الحقول الفارغة
+            
+            // البحث في النصوص
+            const textMatch = searchableFields.some(field => 
+              field && String(field).toLowerCase().includes(query)
+            )
+            
+            // البحث في الأرقام (باستخدام النص الأصلي)
+            const numericMatch = numericFields.some(field => 
+              field && String(field).includes(originalQuery)
+            )
+            
+            // بحث إضافي في رقم المريض والعمر كنص
+            const additionalNumericMatch = 
+              String(patient.patient_number || '').includes(originalQuery) ||
+              String(patient.age || '').includes(originalQuery)
+            
+            return textMatch || numericMatch || additionalNumericMatch
+          }
+          
+          return true
+        })
 
         set({ filteredPatients: filtered })
       },

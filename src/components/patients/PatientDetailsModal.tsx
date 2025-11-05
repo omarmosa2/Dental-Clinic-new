@@ -289,8 +289,9 @@ export default function PatientDetailsModal({
 
       // Load prescriptions for this patient
       setIsLoadingPrescriptions(true)
-      window.electronAPI?.prescriptions?.getByPatient?.(patient.id).then((prescriptions) => {
-        setPatientPrescriptions(prescriptions || [])
+      window.electronAPI?.prescriptions?.getAll?.().then((allPrescriptions) => {
+        const patientPrescriptions = allPrescriptions.filter((p: any) => p.patient_id === patient.id)
+        setPatientPrescriptions(patientPrescriptions || [])
         setIsLoadingPrescriptions(false)
       }).catch((error) => {
         console.error('Error loading prescriptions:', error)
@@ -298,8 +299,9 @@ export default function PatientDetailsModal({
       })
 
       // Load lab orders for this patient
-      window.electronAPI?.labOrders?.getByPatient?.(patient.id).then((labOrders) => {
-        setPatientLabOrders(labOrders || [])
+      window.electronAPI?.labOrders?.getAll?.().then((allLabOrders) => {
+        const patientLabOrders = allLabOrders.filter((l: any) => l.patient_id === patient.id)
+        setPatientLabOrders(patientLabOrders || [])
       }).catch(() => {
         console.error('خطأ في تحميل طلبات المختبر')
       })
@@ -936,9 +938,9 @@ export default function PatientDetailsModal({
                     const treatmentRemaining = treatmentPayments.reduce((sum, p) => sum + (p.treatment_remaining_balance || 0), 0)
 
                     // حساب المبالغ للمواعيد
-                    const appointmentTotalDue = appointmentPayments.reduce((sum, p) => sum + (p.appointment_total_cost || 0), 0)
+                    const appointmentTotalDue = appointmentPayments.reduce((sum, p) => sum + (p.total_amount_due || 0), 0)
                     const appointmentTotalPaid = appointmentPayments.reduce((sum, p) => sum + p.amount, 0)
-                    const appointmentRemaining = appointmentPayments.reduce((sum, p) => sum + (p.appointment_remaining_balance || 0), 0)
+                    const appointmentRemaining = appointmentPayments.reduce((sum, p) => sum + (p.remaining_balance || 0), 0)
 
                     // حساب المبالغ العامة
                     const generalTotalDue = generalPayments.reduce((sum, p) => sum + (p.total_amount_due || 0), 0)
@@ -992,15 +994,24 @@ export default function PatientDetailsModal({
                                     علاجات: {formatCurrency(treatmentTotalDue)} | مواعيد: {formatCurrency(appointmentTotalDue)} | عام: {formatCurrency(generalTotalDue)}
                                   </td>
                                 </tr>
-                                <tr>
-                                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                                    المبلغ المدفوع
+
+                                <tr className="bg-red-50 dark:bg-red-900/20">
+                                  <td className="px-4 py-3 text-sm font-medium text-red-800 dark:text-red-200">
+                                    إجمالي الخصومات
                                   </td>
-                                  <td className="px-4 py-3 text-sm font-bold text-green-600 dark:text-green-400">
-                                    {formatCurrency(totalAmountPaid)}
+                                  <td className="px-4 py-3 text-sm font-bold text-red-600 dark:text-red-400">
+                                    {(() => {
+                                      const totalDiscounts = patientPayments.reduce((sum, payment) => sum + (payment.discount_amount || 0), 0)
+                                      return formatCurrency(totalDiscounts)
+                                    })()}
                                   </td>
-                                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                                    علاجات: {formatCurrency(treatmentTotalPaid)} | مواعيد: {formatCurrency(appointmentTotalPaid)} | عام: {formatCurrency(generalTotalPaid)}
+                                  <td className="px-4 py-3 text-xs text-red-600 dark:text-red-300">
+                                    {(() => {
+                                      const treatmentDiscounts = patientPayments.filter(p => p.tooth_treatment_id).reduce((sum, p) => sum + (p.discount_amount || 0), 0)
+                                      const appointmentDiscounts = patientPayments.filter(p => p.appointment_id && !p.tooth_treatment_id).reduce((sum, p) => sum + (p.discount_amount || 0), 0)
+                                      const generalDiscounts = patientPayments.filter(p => !p.appointment_id && !p.tooth_treatment_id).reduce((sum, p) => sum + (p.discount_amount || 0), 0)
+                                      return `علاجات: ${formatCurrency(treatmentDiscounts)} | مواعيد: ${formatCurrency(appointmentDiscounts)} | عام: ${formatCurrency(generalDiscounts)}`
+                                    })()}
                                   </td>
                                 </tr>
                                 <tr className="bg-muted/50">
@@ -1019,9 +1030,24 @@ export default function PatientDetailsModal({
                                     علاجات: {formatCurrency(treatmentRemaining)} | مواعيد: {formatCurrency(appointmentRemaining)} | عام: {formatCurrency(generalRemaining)}
                                   </td>
                                 </tr>
+                                <tr className="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-800">
+                                  <td className="px-4 py-3 text-sm font-bold text-blue-800 dark:text-blue-200">
+                                    صافي المبالغ المدفوعة
+                                  </td>
+                                  <td className="px-4 py-3 text-lg font-bold text-blue-600 dark:text-blue-400">
+                                    {(() => {
+                                      const totalDiscounts = patientPayments.reduce((sum, payment) => sum + (payment.discount_amount || 0), 0)
+                                      const netAmount = totalAmountPaid - totalDiscounts
+                                      return formatCurrency(netAmount)
+                                    })()}
+                                  </td>
+                                  <td className="px-4 py-3 text-xs text-blue-600 dark:text-blue-300">
+                                    المبلغ المدفوع بعد خصم الخصومات والضرائب
+                                  </td>
+                                </tr>
                                 <tr>
                                   <td className="px-4 py-3 text-sm text-muted-foreground">
-                                    حالات الدفع
+                                    حالات الدفع والخصومات
                                   </td>
                                   <td className="px-4 py-3 text-sm">
                                     <div className="flex gap-2 flex-wrap">
@@ -1034,10 +1060,18 @@ export default function PatientDetailsModal({
                                       <Badge variant="destructive" className="text-xs">
                                         معلق: {pendingPayments.length}
                                       </Badge>
+                                      {(() => {
+                                        const paymentsWithDiscount = patientPayments.filter(p => p.discount_amount && p.discount_amount > 0).length
+                                        return paymentsWithDiscount > 0 && (
+                                          <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                            خصم: {paymentsWithDiscount}
+                                          </Badge>
+                                        )
+                                      })()}
                                     </div>
                                   </td>
                                   <td className="px-4 py-3 text-xs text-muted-foreground">
-                                    إجمالي المدفوعات: {patientPayments.length}
+                                    إجمالي المدفوعات: {patientPayments.length} | خصومات: {patientPayments.filter(p => p.discount_amount && p.discount_amount > 0).length}
                                   </td>
                                 </tr>
                               </tbody>
@@ -1074,13 +1108,7 @@ export default function PatientDetailsModal({
                                 تاريخ الدفع
                               </th>
                               <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                                المبلغ المدفوع
-                              </th>
-                              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                                الإجمالي المطلوب
-                              </th>
-                              <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
-                                المتبقي
+                                المبلغ والرصيد
                               </th>
                               <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">
                                 طريقة الدفع
@@ -1132,8 +1160,8 @@ export default function PatientDetailsModal({
                               } else if (payment.appointment_id) {
                                 paymentType = 'موعد'
                                 paymentDetails = payment.appointment?.title || paymentDetails || 'موعد طبي'
-                                totalDue = payment.appointment_total_cost || payment.total_amount_due || 0
-                                remaining = payment.appointment_remaining_balance || payment.remaining_balance || 0
+                                totalDue = payment.total_amount_due || 0
+                                remaining = payment.remaining_balance || 0
                               }
 
                               return (
@@ -1165,18 +1193,30 @@ export default function PatientDetailsModal({
                                   <td className="px-3 py-2 text-xs text-foreground">
                                     {formatDate(payment.payment_date)}
                                   </td>
-                                  <td className="px-3 py-2 text-xs font-bold text-green-600 dark:text-green-400">
-                                    {formatCurrency(payment.amount)}
-                                  </td>
-                                  <td className="px-3 py-2 text-xs text-foreground">
-                                    {totalDue > 0 ? formatCurrency(totalDue) : '-'}
-                                  </td>
-                                  <td className="px-3 py-2 text-xs font-medium">
-                                    {remaining !== undefined ? (
-                                      <span className={remaining > 0 ? 'text-destructive' : 'text-green-600 dark:text-green-400'}>
-                                        {formatCurrency(remaining)}
-                                      </span>
-                                    ) : '-'}
+                                  <td className="px-3 py-2 text-xs">
+                                    <div className="space-y-1">
+                                      {/* إجمالي المبلغ المدفوع */}
+                                      <div className="text-xs text-muted-foreground arabic-enhanced">
+                                        إجمالي المبلغ المدفوع:
+                                      </div>
+                                      <div className="font-medium text-green-600 dark:text-green-400">
+                                        {formatCurrency(payment.total_amount || payment.amount)}
+                                      </div>
+
+                                      {/* مبلغ الخصم */}
+                                      {payment.discount_amount && payment.discount_amount > 0 && (
+                                        <div className="text-xs text-muted-foreground arabic-enhanced">
+                                          خصم: <span className="text-red-600 dark:text-red-400 font-medium">{formatCurrency(payment.discount_amount)}</span>
+                                        </div>
+                                      )}
+
+                                      {/* المبلغ المتبقي */}
+                                      {remaining !== undefined && remaining > 0 && (
+                                        <div className="text-xs text-muted-foreground arabic-enhanced">
+                                          متبقي: <span className="text-orange-600 dark:text-orange-400 font-medium">{formatCurrency(remaining)}</span>
+                                        </div>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="px-3 py-2 text-xs text-muted-foreground">
                                     {payment.payment_method === 'cash' ? 'نقداً' :
@@ -1371,8 +1411,9 @@ export default function PatientDetailsModal({
           if (!open) {
             // Reload prescriptions when dialog closes
             setIsLoadingPrescriptions(true)
-            window.electronAPI?.prescriptions?.getByPatient?.(patient.id).then((prescriptions) => {
-              setPatientPrescriptions(prescriptions || [])
+            window.electronAPI?.prescriptions?.getAll?.().then((allPrescriptions) => {
+              const patientPrescriptions = allPrescriptions.filter((p: any) => p.patient_id === patient.id)
+              setPatientPrescriptions(patientPrescriptions || [])
               setIsLoadingPrescriptions(false)
             }).catch((error) => {
               console.error('Error reloading prescriptions:', error)
