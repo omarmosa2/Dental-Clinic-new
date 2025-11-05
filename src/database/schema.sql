@@ -393,6 +393,17 @@ CREATE TABLE IF NOT EXISTS tooth_treatments (
     UNIQUE(patient_id, tooth_number, priority)
 );
 
+-- Tooth treatments indexes for performance optimization
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient ON tooth_treatments(patient_id);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_tooth_number ON tooth_treatments(tooth_number);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient_tooth ON tooth_treatments(patient_id, tooth_number);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_status ON tooth_treatments(treatment_status);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_appointment ON tooth_treatments(appointment_id);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_priority ON tooth_treatments(priority);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient_priority ON tooth_treatments(patient_id, priority);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_category ON tooth_treatments(treatment_category);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatments_dates ON tooth_treatments(start_date, completion_date);
+
 -- Legacy dental treatment images table (kept for backward compatibility)
 CREATE TABLE IF NOT EXISTS dental_treatment_images (
     id TEXT PRIMARY KEY,
@@ -423,6 +434,14 @@ CREATE TABLE IF NOT EXISTS tooth_treatment_images (
     FOREIGN KEY (tooth_treatment_id) REFERENCES tooth_treatments(id) ON DELETE CASCADE,
     FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
 );
+
+-- Tooth treatment images indexes for performance optimization
+CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_treatment ON tooth_treatment_images(tooth_treatment_id);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_patient ON tooth_treatment_images(patient_id);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_tooth ON tooth_treatment_images(tooth_number);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_patient_tooth ON tooth_treatment_images(patient_id, tooth_number);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_type ON tooth_treatment_images(image_type);
+CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_date ON tooth_treatment_images(taken_date);
 
 -- Clinic needs table for managing clinic requirements and needs
 CREATE TABLE IF NOT EXISTS clinic_needs (
@@ -494,6 +513,13 @@ CREATE TABLE IF NOT EXISTS treatment_sessions (
     -- Ensure unique session number per treatment
     UNIQUE(tooth_treatment_id, session_number)
 );
+
+-- Treatment sessions indexes for performance optimization
+CREATE INDEX IF NOT EXISTS idx_treatment_sessions_treatment ON treatment_sessions(tooth_treatment_id);
+CREATE INDEX IF NOT EXISTS idx_treatment_sessions_date ON treatment_sessions(session_date);
+CREATE INDEX IF NOT EXISTS idx_treatment_sessions_status ON treatment_sessions(session_status);
+CREATE INDEX IF NOT EXISTS idx_treatment_sessions_treatment_date ON treatment_sessions(tooth_treatment_id, session_date);
+CREATE INDEX IF NOT EXISTS idx_treatment_sessions_status_date ON treatment_sessions(session_status, session_date);
 
 -- Patient treatment timeline table for comprehensive treatment tracking
 CREATE TABLE IF NOT EXISTS patient_treatment_timeline (

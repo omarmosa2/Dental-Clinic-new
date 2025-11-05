@@ -1,6 +1,19 @@
 import { create } from 'zustand'
 import { DentalTreatmentImage, ToothTreatment } from '@/types'
 
+// آلية تخزين مؤقت بسيطة
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+}
+
+interface TreatmentCache {
+  [patientId: string]: CacheEntry<ToothTreatment[]>
+}
+
+// مدة صلاحية الكاش: 5 دقائق
+const CACHE_DURATION = 5 * 60 * 1000
+
 interface DentalTreatmentState {
   toothTreatments: ToothTreatment[] // Multiple treatments per tooth
   images: DentalTreatmentImage[]
@@ -9,6 +22,8 @@ interface DentalTreatmentState {
   error: string | null
   selectedPatientId: string | null
   selectedToothNumber: number | null
+  // كاش للعلاجات حسب المريض
+  treatmentCache: TreatmentCache
 
   // Multiple treatments actions
   loadToothTreatments: () => Promise<void>
@@ -51,6 +66,7 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
   error: null,
   selectedPatientId: null,
   selectedToothNumber: null,
+  treatmentCache: {},
 
   // Multiple treatments per tooth actions
   loadToothTreatments: async () => {
@@ -67,15 +83,42 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
   },
 
   loadToothTreatmentsByPatient: async (patientId: string) => {
+    // التحقق من الكاش أولاً
+    const state = get()
+    const cachedEntry = state.treatmentCache[patientId]
+    const now = Date.now()
+
+    // إذا كانت البيانات موجودة في الكاش وما زالت صالحة
+    if (cachedEntry && (now - cachedEntry.timestamp) < CACHE_DURATION) {
+      console.log('🦷 Using cached treatments for patient:', patientId)
+      set({
+        toothTreatments: cachedEntry.data,
+        isLoading: false,
+        selectedPatientId: patientId
+      })
+      return
+    }
+
     set({ isLoading: true, error: null })
     try {
-      console.log('🦷 Loading treatments for patient:', patientId)
+      console.log('🦷 Loading treatments from DB for patient:', patientId)
       const toothTreatments = await window.electronAPI.toothTreatments.getByPatient(patientId)
       console.log('🦷 Loaded treatments:', toothTreatments.length, 'treatments')
+
+      // تحديث الكاش
+      const updatedCache = {
+        ...state.treatmentCache,
+        [patientId]: {
+          data: toothTreatments,
+          timestamp: now
+        }
+      }
+
       set({
         toothTreatments,
         isLoading: false,
-        selectedPatientId: patientId
+        selectedPatientId: patientId,
+        treatmentCache: updatedCache
       })
 
       // إرسال حدث لتحديث الألوان
@@ -133,12 +176,19 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
     set({ isLoading: true, error: null })
     try {
       const newTreatment = await window.electronAPI.toothTreatments.create(treatmentData)
-      const { toothTreatments, selectedPatientId } = get()
+      const { toothTreatments, selectedPatientId, treatmentCache } = get()
+
+      // مسح الكاش للمريض المعني
+      const updatedCache = { ...treatmentCache }
+      if (treatmentData.patient_id) {
+        delete updatedCache[treatmentData.patient_id]
+      }
 
       // Add the new treatment to the local state
       set({
         toothTreatments: [...toothTreatments, newTreatment],
-        isLoading: false
+        isLoading: false,
+        treatmentCache: updatedCache
       })
 
       // Reload all treatments for the patient to ensure consistency
@@ -182,19 +232,41 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
       await window.electronAPI.toothTreatments.update(id, updates)
       console.log('🦷 Store: Database update successful')
 
-      const { toothTreatments, selectedPatientId } = get()
+      const { toothTreatments, selectedPatientId, treatmentCache } = get()
+
+      // العثور على العلاج المحدث لمسح الكاش الخاص بمريضه
+      const updatedTreatment = toothTreatments.find(t => t.id === id)
+      const updatedCache = { ...treatmentCache }
+      if (updatedTreatment?.patient_id) {
+        delete updatedCache[updatedTreatment.patient_id]
+      }
 
       // Update the treatment in the local state
       const updatedTreatments = toothTreatments.map(treatment =>
         treatment.id === id ? { ...treatment, ...updates, updated_at: new Date().toISOString() } : treatment
       )
-      set({ toothTreatments: updatedTreatments, isLoading: false })
+      set({
+        toothTreatments: updatedTreatments,
+        isLoading: false,
+        treatmentCache: updatedCache
+      })
 
       // Optionally reload all treatments for the patient to ensure consistency
       if (selectedPatientId) {
         try {
           const refreshedTreatments = await window.electronAPI.toothTreatments.getByPatient(selectedPatientId)
-          set({ toothTreatments: refreshedTreatments })
+          // تحديث الكاش مع البيانات الجديدة
+          const newCache = {
+            ...updatedCache,
+            [selectedPatientId]: {
+              data: refreshedTreatments,
+              timestamp: Date.now()
+            }
+          }
+          set({
+            toothTreatments: refreshedTreatments,
+            treatmentCache: newCache
+          })
           console.log('🦷 Store: Refreshed treatments from database')
         } catch (refreshError) {
           console.warn('🦷 Store: Failed to refresh treatments, but update was successful:', refreshError)
@@ -246,10 +318,19 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
     set({ isLoading: true, error: null })
     try {
       await window.electronAPI.toothTreatments.delete(id)
-      const { toothTreatments } = get()
+      const { toothTreatments, treatmentCache } = get()
+
+      // العثور على العلاج المحذوف لمسح الكاش الخاص بمريضه
+      const deletedTreatment = toothTreatments.find(t => t.id === id)
+      const updatedCache = { ...treatmentCache }
+      if (deletedTreatment?.patient_id) {
+        delete updatedCache[deletedTreatment.patient_id]
+      }
+
       set({
         toothTreatments: toothTreatments.filter(treatment => treatment.id !== id),
-        isLoading: false
+        isLoading: false,
+        treatmentCache: updatedCache
       })
 
       // Emit events for real-time sync

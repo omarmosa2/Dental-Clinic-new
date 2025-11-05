@@ -67,8 +67,15 @@ export class DatabaseService {
     this.db.pragma('foreign_keys = ON')
     this.db.pragma('journal_mode = WAL')
     this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('cache_size = 1000')
+    // تحسين حجم الذاكرة المؤقتة: -64000 = 64MB (القيمة السالبة تعني KB)
+    this.db.pragma('cache_size = -64000')
     this.db.pragma('temp_store = MEMORY')
+    // تحسين حجم الصفحة لأداء أفضل
+    this.db.pragma('page_size = 4096')
+    // استخدام memory-mapped I/O لأداء أسرع (30GB max)
+    this.db.pragma('mmap_size = 30000000000')
+    // وضع القفل الحصري لأداء أفضل في التطبيقات المحلية
+    this.db.pragma('locking_mode = EXCLUSIVE')
 
     // Create performance indexes
     this.createIndexes()
@@ -3048,12 +3055,13 @@ export class DatabaseService {
   async getToothTreatmentsByPatient(patientId: string): Promise<any[]> {
     this.ensureToothTreatmentsTableExists()
 
+    // استعلام محسّن: إزالة JOIN غير الضروري على patients (نعرف المريض مسبقًا)
+    // الاحتفاظ فقط بـ JOIN على appointments لأنه قد يكون مفيدًا
     const stmt = this.db.prepare(`
       SELECT tt.*,
-             p.full_name as patient_name,
-             a.title as appointment_title
+             a.title as appointment_title,
+             a.start_time as appointment_start_time
       FROM tooth_treatments tt
-      LEFT JOIN patients p ON tt.patient_id = p.id
       LEFT JOIN appointments a ON tt.appointment_id = a.id
       WHERE tt.patient_id = ?
       ORDER BY tt.tooth_number ASC, tt.priority ASC
@@ -3388,17 +3396,32 @@ export class DatabaseService {
 
         // Create indexes for better performance
         this.db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient
+          ON tooth_treatments(patient_id);
+
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_tooth_number
+          ON tooth_treatments(tooth_number);
+
           CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient_tooth
           ON tooth_treatments(patient_id, tooth_number);
-
-          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_priority
-          ON tooth_treatments(patient_id, tooth_number, priority);
 
           CREATE INDEX IF NOT EXISTS idx_tooth_treatments_status
           ON tooth_treatments(treatment_status);
 
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_appointment
+          ON tooth_treatments(appointment_id);
+
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_priority
+          ON tooth_treatments(priority);
+
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient_priority
+          ON tooth_treatments(patient_id, priority);
+
           CREATE INDEX IF NOT EXISTS idx_tooth_treatments_category
           ON tooth_treatments(treatment_category);
+
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatments_dates
+          ON tooth_treatments(start_date, completion_date);
         `)
         console.log('✅ [DEBUG] tooth_treatments indexes created successfully')
 
@@ -3467,10 +3490,12 @@ export class DatabaseService {
 
         // Create indexes for tooth_treatment_images
         this.db.exec(`
-          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_treatment_id ON tooth_treatment_images (tooth_treatment_id);
-          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_patient_id ON tooth_treatment_images (patient_id);
-          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_tooth_number ON tooth_treatment_images (tooth_number);
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_treatment ON tooth_treatment_images (tooth_treatment_id);
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_patient ON tooth_treatment_images (patient_id);
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_tooth ON tooth_treatment_images (tooth_number);
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_patient_tooth ON tooth_treatment_images (patient_id, tooth_number);
           CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_type ON tooth_treatment_images (image_type);
+          CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_date ON tooth_treatment_images (taken_date);
         `)
         console.log('✅ [DEBUG] tooth_treatment_images table and indexes created successfully')
       } else {

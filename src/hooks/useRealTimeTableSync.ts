@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useAppointmentStore } from '@/store/appointmentStore'
 import { usePaymentStore } from '@/store/paymentStore'
 import { usePatientStore } from '@/store/patientStore'
@@ -8,6 +8,7 @@ import { useInventoryStore } from '@/store/inventoryStore'
 /**
  * Hook لضمان تحديث الجداول في الوقت الفعلي عند تغيير البيانات
  * يحل مشكلة عدم تحديث الجداول عند تعديل البيانات
+ * مع تحسينات debouncing لتقليل التحديثات المتكررة
  */
 export function useRealTimeTableSync() {
   const { loadAppointments } = useAppointmentStore()
@@ -15,6 +16,23 @@ export function useRealTimeTableSync() {
   const { loadPatients } = usePatientStore()
   const { loadPrescriptions } = usePrescriptionStore()
   const { loadInventoryItems } = useInventoryStore()
+
+  // مراجع لتخزين timers الخاصة بـ debouncing
+  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
+
+  // دالة debounce محسّنة
+  const debounce = useCallback((key: string, callback: () => void, delay: number = 300) => {
+    // إلغاء أي timer سابق لنفس المفتاح
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key])
+    }
+
+    // إنشاء timer جديد
+    debounceTimers.current[key] = setTimeout(() => {
+      callback()
+      delete debounceTimers.current[key]
+    }, delay)
+  }, [])
 
   // دالة لإعادة تحميل جميع البيانات
   const refreshAllTables = useCallback(async () => {
@@ -65,35 +83,31 @@ export function useRealTimeTableSync() {
   useEffect(() => {
     console.log('🔔 Setting up real-time table sync listeners...')
 
-    // دوال معالجة الأحداث
+    // دوال معالجة الأحداث مع debouncing
     const handleAppointmentChange = async (event: any) => {
-      console.log('📅 Appointment changed, refreshing appointments table...', event.detail?.type)
-      setTimeout(() => refreshTable('appointments'), 50)
+      console.log('📅 Appointment changed, scheduling refresh...', event.detail?.type)
+      debounce('appointments', () => refreshTable('appointments'), 300)
     }
 
     const handlePaymentChange = async (event: any) => {
-      console.log('💰 Payment changed, refreshing payments table...', event.detail?.type)
-      setTimeout(() => refreshTable('payments'), 50)
+      console.log('💰 Payment changed, scheduling refresh...', event.detail?.type)
+      debounce('payments', () => refreshTable('payments'), 300)
     }
 
     const handlePatientChange = async (event: any) => {
-      console.log('👤 Patient changed, refreshing patients table...', event.detail?.type)
-      setTimeout(() => refreshTable('patients'), 50)
-      // أيضاً تحديث المواعيد والدفعات لأنها تحتوي على بيانات المرضى
-      setTimeout(() => {
-        refreshTable('appointments')
-        refreshTable('payments')
-      }, 100)
+      console.log('👤 Patient changed, scheduling refresh...', event.detail?.type)
+      // تحديث جدول المرضى فقط - إزالة التحديثات غير الضرورية
+      debounce('patients', () => refreshTable('patients'), 300)
     }
 
     const handlePrescriptionChange = async (event: any) => {
-      console.log('💊 Prescription changed, refreshing prescriptions table...', event.detail?.type)
-      setTimeout(() => refreshTable('prescriptions'), 50)
+      console.log('💊 Prescription changed, scheduling refresh...', event.detail?.type)
+      debounce('prescriptions', () => refreshTable('prescriptions'), 300)
     }
 
     const handleInventoryChange = async (event: any) => {
-      console.log('📦 Inventory changed, refreshing inventory table...', event.detail?.type)
-      setTimeout(() => refreshTable('inventory'), 50)
+      console.log('📦 Inventory changed, scheduling refresh...', event.detail?.type)
+      debounce('inventory', () => refreshTable('inventory'), 300)
     }
 
     // تسجيل المستمعين لأحداث تغيير البيانات
@@ -147,8 +161,14 @@ export function useRealTimeTableSync() {
       inventoryEvents.forEach(eventName => {
         window.removeEventListener(eventName, handleInventoryChange)
       })
+
+      // إلغاء جميع timers المعلقة عند cleanup
+      Object.values(debounceTimers.current).forEach(timer => {
+        clearTimeout(timer)
+      })
+      debounceTimers.current = {}
     }
-  }, [refreshTable])
+  }, [refreshTable, debounce])
 
   return {
     refreshAllTables,

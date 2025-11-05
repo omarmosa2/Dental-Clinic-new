@@ -261,52 +261,63 @@ export default function PatientDetailsModal({
 
   useEffect(() => {
     if (patient && open) {
-      // Filter appointments for this patient
-      setIsLoadingAppointments(true)
-      const filteredAppointments = appointments.filter(apt => apt.patient_id === patient.id)
-      setPatientAppointments(filteredAppointments)
-      setIsLoadingAppointments(false)
+      // دالة لتحميل جميع البيانات بشكل متوازي وآمن
+      const loadAllPatientData = async () => {
+        try {
+          // تعيين حالة التحميل لجميع الأقسام
+          setIsLoadingAppointments(true)
+          setIsLoadingPayments(true)
+          setIsLoadingTreatments(true)
+          setIsLoadingPrescriptions(true)
 
-      // Filter payments for this patient
-      setIsLoadingPayments(true)
-      const filteredPayments = payments.filter(payment => payment.patient_id === patient.id)
-      setPatientPayments(filteredPayments)
-      setIsLoadingPayments(false)
+          // تحميل متوازي لجميع البيانات باستخدام Promise.all
+          const [
+            treatmentsFromDB,
+            prescriptionsFromDB,
+            labOrdersFromDB
+          ] = await Promise.all([
+            // تحميل العلاجات مباشرة من قاعدة البيانات
+            window.electronAPI?.toothTreatments?.getByPatient?.(patient.id) || [],
+            // تحميل الوصفات مباشرة حسب المريض
+            window.electronAPI?.prescriptions?.getByPatient?.(patient.id) || [],
+            // تحميل طلبات المختبر مباشرة حسب المريض
+            window.electronAPI?.labOrders?.getByPatient?.(patient.id) || []
+          ])
 
-      // Load treatments for this patient
-      setIsLoadingTreatments(true)
-      loadToothTreatmentsByPatient(patient.id).then(() => {
-        // Get fresh treatments from the store after loading
-        const { toothTreatments: freshTreatments } = useDentalTreatmentStore.getState()
-        const filteredTreatments = freshTreatments.filter(treatment => treatment.patient_id === patient.id)
-        setPatientTreatments(filteredTreatments)
-        setIsLoadingTreatments(false)
-        // تحديث أسماء العلاجات المخصصة
-        refreshTreatmentNames()
-      }).catch(() => {
-        setIsLoadingTreatments(false)
-      })
+          // تصفية المواعيد والمدفوعات من Store (متوفرة بالفعل)
+          const filteredAppointments = appointments.filter(apt => apt.patient_id === patient.id)
+          const filteredPayments = payments.filter(payment => payment.patient_id === patient.id)
 
-      // Load prescriptions for this patient
-      setIsLoadingPrescriptions(true)
-      window.electronAPI?.prescriptions?.getAll?.().then((allPrescriptions) => {
-        const patientPrescriptions = allPrescriptions.filter((p: any) => p.patient_id === patient.id)
-        setPatientPrescriptions(patientPrescriptions || [])
-        setIsLoadingPrescriptions(false)
-      }).catch((error) => {
-        console.error('Error loading prescriptions:', error)
-        setIsLoadingPrescriptions(false)
-      })
+          // تحديث الحالة بعد اكتمال جميع العمليات
+          setPatientAppointments(filteredAppointments)
+          setPatientPayments(filteredPayments)
+          setPatientTreatments(treatmentsFromDB)
+          setPatientPrescriptions(prescriptionsFromDB)
+          setPatientLabOrders(labOrdersFromDB)
 
-      // Load lab orders for this patient
-      window.electronAPI?.labOrders?.getAll?.().then((allLabOrders) => {
-        const patientLabOrders = allLabOrders.filter((l: any) => l.patient_id === patient.id)
-        setPatientLabOrders(patientLabOrders || [])
-      }).catch(() => {
-        console.error('خطأ في تحميل طلبات المختبر')
-      })
+          // تحديث أسماء العلاجات المخصصة
+          refreshTreatmentNames()
+
+          // إيقاف حالة التحميل
+          setIsLoadingAppointments(false)
+          setIsLoadingPayments(false)
+          setIsLoadingTreatments(false)
+          setIsLoadingPrescriptions(false)
+
+        } catch (error) {
+          console.error('Error loading patient data:', error)
+          // إيقاف حالة التحميل في حالة الخطأ
+          setIsLoadingAppointments(false)
+          setIsLoadingPayments(false)
+          setIsLoadingTreatments(false)
+          setIsLoadingPrescriptions(false)
+        }
+      }
+
+      // تنفيذ التحميل
+      loadAllPatientData()
     }
-  }, [patient, open, appointments, payments, loadToothTreatmentsByPatient])
+  }, [patient?.id, open, appointments, payments, refreshTreatmentNames])
 
   if (!patient) return null
 
