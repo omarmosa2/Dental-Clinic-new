@@ -21,6 +21,9 @@ class DatabaseService {
       }
     }
 
+    // Store the database path for reinitialize to use
+    this.dbPath = dbPath
+
     console.log('🗄️ Initializing SQLite database at:', dbPath)
 
     try {
@@ -2340,18 +2343,10 @@ class DatabaseService {
       this.close()
     }
 
-    // Get database path (consistent with constructor)
-    let dbPath
-    try {
-      const { app } = require('electron')
-      dbPath = join(app.getPath('userData'), 'dental_clinic.db')
-      console.log('🗄️ Reinitializing with userData path:', dbPath)
-    } catch (error) {
-      // Fallback for testing or non-electron environments
-      console.log('⚠️ Electron app not available during reinitialize, using fallback path')
-      const appDir = process.execPath ? require('path').dirname(process.execPath) : process.cwd()
-      dbPath = join(appDir, 'dental_clinic.db')
-    }
+    // Use the stored database path from constructor
+    // This ensures we use the same path in both development and production
+    const dbPath = this.dbPath
+    console.log('🗄️ Reinitializing database at stored path:', dbPath)
 
     this.db = new Database(dbPath)
 
