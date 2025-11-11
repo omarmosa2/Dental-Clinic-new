@@ -445,6 +445,17 @@ app.whenReady().then(async () => {
     }
   }
 
+  // Run diagnostic for backup/restore system
+  if (!isDev) {
+    try {
+      console.log('🔍 Running backup/restore diagnostic...')
+      const { diagnoseBackupRestore } = require('../scripts/diagnose-backup-restore.js')
+      diagnoseBackupRestore()
+    } catch (diagError) {
+      console.warn('⚠️ Could not run diagnostic:', diagError.message)
+    }
+  }
+
   createWindow()
 
   // تحديث العنوان والأيقونة بعد تحميل التطبيق

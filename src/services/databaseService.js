@@ -2332,8 +2332,23 @@ class DatabaseService {
   // Close database connection
   close() {
     if (this.db) {
-      this.db.close()
-      this.db = null
+      try {
+        // Force WAL checkpoint before closing
+        console.log('🔄 Forcing WAL checkpoint before closing database...')
+        this.db.pragma('wal_checkpoint(TRUNCATE)')
+        console.log('✅ WAL checkpoint completed')
+      } catch (checkpointError) {
+        console.warn('⚠️ WAL checkpoint failed:', checkpointError.message)
+      }
+      
+      try {
+        this.db.close()
+        this.db = null
+        console.log('✅ Database connection closed successfully')
+      } catch (closeError) {
+        console.error('❌ Error closing database:', closeError.message)
+        this.db = null
+      }
     }
   }
 

@@ -15,19 +15,27 @@ class BackupService {
     // This ensures we're using the same path as the database service
     let actualDbPath
     try {
-      // Try to get the path from the database service if available
-      if (databaseService && databaseService.db && databaseService.db.name) {
+      // PRIORITY 1: Try to get the stored path from database service (most reliable)
+      if (databaseService && databaseService.dbPath) {
+        actualDbPath = databaseService.dbPath
+        console.log('📍 Using stored database path from database service:', actualDbPath)
+      }
+      // PRIORITY 2: Try to get the path from the database connection
+      else if (databaseService && databaseService.db && databaseService.db.name) {
         actualDbPath = databaseService.db.name
-        console.log('📍 Using database path from database service:', actualDbPath)
-      } else {
-        // Fallback to the same logic as databaseService.js
+        console.log('📍 Using database path from db.name:', actualDbPath)
+      }
+      // PRIORITY 3: Try to get userData path from Electron
+      else {
         try {
+          const { app } = require('electron')
+          actualDbPath = join(app.getPath('userData'), 'dental_clinic.db')
+          console.log('📍 Using Electron userData path:', actualDbPath)
+        } catch (electronError) {
+          // PRIORITY 4: Fallback to executable directory
           const appDir = process.execPath ? require('path').dirname(process.execPath) : process.cwd()
           actualDbPath = join(appDir, 'dental_clinic.db')
           console.log('📍 Using fallback database path (app dir):', actualDbPath)
-        } catch (error) {
-          actualDbPath = join(process.cwd(), 'dental_clinic.db')
-          console.log('📍 Using fallback database path (cwd):', actualDbPath)
         }
       }
     } catch (error) {
@@ -42,25 +50,35 @@ class BackupService {
     this.backupDir = join(dbDir, 'backups')
     this.backupRegistryPath = join(dbDir, 'backup_registry.json')
 
-    // Set dental images path to project directory instead of database directory
+    // Set dental images path using the same logic as database path
     // Check if we're in development mode to determine the correct path
     const isDevelopment = process.env.NODE_ENV === 'development' ||
                          process.execPath.includes('node') ||
                          process.execPath.includes('electron') ||
-                         process.cwd().includes('dental-clinic')
+                         process.cwd().includes('dental-clinic') ||
+                         process.cwd().includes('Dental-Clinic')
 
     if (isDevelopment) {
       // In development, use project directory
       this.dentalImagesPath = join(process.cwd(), 'dental_images')
     } else {
-      // In production, use directory relative to executable
-      this.dentalImagesPath = join(require('path').dirname(process.execPath), 'dental_images')
+      // In production, use userData directory (same parent as database)
+      try {
+        const { app } = require('electron')
+        this.dentalImagesPath = join(app.getPath('userData'), 'dental_images')
+        console.log('📍 Using Electron userData for images:', this.dentalImagesPath)
+      } catch (electronError) {
+        // Fallback to directory relative to executable
+        this.dentalImagesPath = join(require('path').dirname(process.execPath), 'dental_images')
+        console.log('📍 Using executable directory for images:', this.dentalImagesPath)
+      }
     }
 
     console.log('📍 Backup service paths:')
     console.log('   Database:', this.sqliteDbPath)
     console.log('   Backups:', this.backupDir)
     console.log('   Images:', this.dentalImagesPath)
+    console.log('   Development mode:', isDevelopment)
 
     this.ensureBackupDirectory()
     this.ensureBackupRegistry()
@@ -678,6 +696,9 @@ class BackupService {
   async restoreBackup(backupPath) {
     try {
       console.log('🔄 Starting backup restoration...')
+      console.log('📍 Requested backup path:', backupPath)
+      console.log('📍 Current database path:', this.sqliteDbPath)
+      console.log('📍 Current images path:', this.dentalImagesPath)
 
       // Check if backup file exists and determine type
       let actualBackupPath = backupPath
@@ -715,13 +736,23 @@ class BackupService {
       const isDevelopment = process.env.NODE_ENV === 'development' ||
                            process.execPath.includes('node') ||
                            process.execPath.includes('electron') ||
-                           process.cwd().includes('dental-clinic')
+                           process.cwd().includes('dental-clinic') ||
+                           process.cwd().includes('Dental-Clinic')
 
       let baseDir
       if (isDevelopment) {
         baseDir = process.cwd()
+        console.log('📍 Backup: Using development base directory:', baseDir)
       } else {
-        baseDir = require('path').dirname(process.execPath)
+        // In production, use userData directory
+        try {
+          const { app } = require('electron')
+          baseDir = app.getPath('userData')
+          console.log('📍 Backup: Using Electron userData directory:', baseDir)
+        } catch (electronError) {
+          baseDir = require('path').dirname(process.execPath)
+          console.log('📍 Backup: Using executable directory:', baseDir)
+        }
       }
 
       const currentDbBackupPath = join(baseDir, `current_db_backup_${Date.now()}.db`)
@@ -777,18 +808,29 @@ class BackupService {
   async restoreFromZipBackup(zipBackupPath) {
     try {
       console.log('📦 Extracting ZIP backup...')
+      console.log('📍 ZIP backup path:', zipBackupPath)
 
-      // Determine base directory
+      // Determine base directory using the same logic as constructor
       const isDevelopment = process.env.NODE_ENV === 'development' ||
                            process.execPath.includes('node') ||
                            process.execPath.includes('electron') ||
-                           process.cwd().includes('dental-clinic')
+                           process.cwd().includes('dental-clinic') ||
+                           process.cwd().includes('Dental-Clinic')
 
       let baseDir
       if (isDevelopment) {
         baseDir = process.cwd()
+        console.log('📍 Using development base directory:', baseDir)
       } else {
-        baseDir = require('path').dirname(process.execPath)
+        // In production, use userData directory
+        try {
+          const { app } = require('electron')
+          baseDir = app.getPath('userData')
+          console.log('📍 Using Electron userData directory:', baseDir)
+        } catch (electronError) {
+          baseDir = require('path').dirname(process.execPath)
+          console.log('📍 Using executable directory:', baseDir)
+        }
       }
 
       // Create temporary directory for extraction
@@ -888,6 +930,8 @@ class BackupService {
   async restoreFromSqliteBackup(sqliteBackupPath) {
     try {
       console.log('🔄 Starting SQLite database restoration...')
+      console.log('📍 Backup file path:', sqliteBackupPath)
+      console.log('📍 Target database path:', this.sqliteDbPath)
 
       // Verify backup file exists and has content
       if (!existsSync(sqliteBackupPath)) {
@@ -911,6 +955,11 @@ class BackupService {
         const tablesResult = tablesQuery.get()
         console.log('📋 Backup contains', tablesResult.count, 'tables')
 
+        // List all tables in backup
+        const allTablesQuery = testDb.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        const allTables = allTablesQuery.all()
+        console.log('📋 All tables in backup:', allTables.map(t => t.name).join(', '))
+
         // Test key tables
         const tables = ['patients', 'appointments', 'payments', 'treatments']
         for (const table of tables) {
@@ -932,16 +981,48 @@ class BackupService {
 
       // Close current database connection
       console.log('📁 Closing current database connection...')
-      this.databaseService.close()
-      console.log('📁 Database connection closed')
+      try {
+        this.databaseService.close()
+        console.log('✅ Database connection closed successfully')
+      } catch (closeError) {
+        console.warn('⚠️ Error closing database connection:', closeError.message)
+      }
 
-      // Wait a moment to ensure file handles are released
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Wait longer to ensure file handles are released
+      console.log('⏳ Waiting for file handles to be released...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Delete WAL and SHM files if they exist
+      const walPath = `${this.sqliteDbPath}-wal`
+      const shmPath = `${this.sqliteDbPath}-shm`
+      
+      if (existsSync(walPath)) {
+        try {
+          rmSync(walPath, { force: true })
+          console.log('🗑️ Deleted WAL file')
+        } catch (walError) {
+          console.warn('⚠️ Could not delete WAL file:', walError.message)
+        }
+      }
+      
+      if (existsSync(shmPath)) {
+        try {
+          rmSync(shmPath, { force: true })
+          console.log('🗑️ Deleted SHM file')
+        } catch (shmError) {
+          console.warn('⚠️ Could not delete SHM file:', shmError.message)
+        }
+      }
 
       // Replace current database with backup
       console.log('📋 Replacing database file with backup...')
-      copyFileSync(sqliteBackupPath, this.sqliteDbPath)
-      console.log('📋 Database file replaced with backup')
+      try {
+        copyFileSync(sqliteBackupPath, this.sqliteDbPath)
+        console.log('✅ Database file replaced successfully')
+      } catch (copyError) {
+        console.error('❌ Failed to copy backup file:', copyError)
+        throw new Error(`Failed to replace database file: ${copyError.message}`)
+      }
 
       // Verify the replacement was successful
       const newStats = statSync(this.sqliteDbPath)
@@ -952,10 +1033,18 @@ class BackupService {
         console.warn('Expected:', backupStats.size, 'bytes, Actual:', newStats.size, 'bytes')
       }
 
+      // Wait a bit before reinitializing
+      await new Promise(resolve => setTimeout(resolve, 200))
+
       // Reinitialize database service
       console.log('🔄 Reinitializing database service...')
-      this.databaseService.reinitialize()
-      console.log('✅ Database service reinitialized')
+      try {
+        this.databaseService.reinitialize()
+        console.log('✅ Database service reinitialized successfully')
+      } catch (reinitError) {
+        console.error('❌ Failed to reinitialize database service:', reinitError)
+        throw new Error(`Failed to reinitialize database: ${reinitError.message}`)
+      }
 
       // Verify the restored database works
       try {
