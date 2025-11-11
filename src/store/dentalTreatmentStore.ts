@@ -96,6 +96,13 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
         isLoading: false,
         selectedPatientId: patientId
       })
+
+      // إرسال حدث لتحديث الألوان حتى عند استخدام الكاش
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('treatments-loaded', {
+          detail: { patientId, treatmentsCount: cachedEntry.data.length, fromCache: true }
+        }))
+      }
       return
     }
 

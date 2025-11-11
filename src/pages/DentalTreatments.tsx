@@ -120,12 +120,17 @@ export default function DentalTreatments() {
             console.log('Patient selected:', preSelectedPatientId)
 
             // Load treatments for the pre-selected patient
-            loadToothTreatmentsByPatient(preSelectedPatientId)
-            loadImages()
+            try {
+              await loadToothTreatmentsByPatient(preSelectedPatientId)
+              await loadAllToothTreatmentImagesByPatient(preSelectedPatientId)
 
-            // Load session statistics for the pre-selected patient
-            const sessionStats = await getPatientSessionStats(preSelectedPatientId)
-            setPatientSessionStats(prev => ({ ...prev, [preSelectedPatientId]: sessionStats }))
+              // Load session statistics for the pre-selected patient
+              const sessionStats = await getPatientSessionStats(preSelectedPatientId)
+              setPatientSessionStats(prev => ({ ...prev, [preSelectedPatientId]: sessionStats }))
+            } catch (error) {
+              console.error('Error loading pre-selected patient data:', error)
+              notify.error('فشل في تحميل بيانات المريض')
+            }
 
             // Scroll to dental chart after a short delay
             setTimeout(() => {
@@ -287,21 +292,26 @@ export default function DentalTreatments() {
     setIsMultiSelectMode(false)
     // تحميل العلاجات والصور للمريض المحدد
     if (patientId) {
-      // تحميل العلاجات أولاً وانتظار اكتمالها
-      await loadToothTreatmentsByPatient(patientId) // النظام الجديد
-      loadAllToothTreatmentImagesByPatient(patientId) // تحميل الصور بالنظام الجديد
+      try {
+        // تحميل العلاجات أولاً وانتظار اكتمالها
+        await loadToothTreatmentsByPatient(patientId) // النظام الجديد
+        await loadAllToothTreatmentImagesByPatient(patientId) // تحميل الصور بالنظام الجديد وانتظار اكتمالها
 
-      // تحميل إحصائيات الجلسات للمريض بعد تحميل العلاجات
-      const sessionStats = await getPatientSessionStats(patientId)
-      setPatientSessionStats(prev => ({ ...prev, [patientId]: sessionStats }))
+        // تحميل إحصائيات الجلسات للمريض بعد تحميل العلاجات
+        const sessionStats = await getPatientSessionStats(patientId)
+        setPatientSessionStats(prev => ({ ...prev, [patientId]: sessionStats }))
 
-      // Scroll to dental chart after selection
-      setTimeout(() => {
-        const dentalChartElement = document.getElementById('dental-chart-section')
-        if (dentalChartElement) {
-          dentalChartElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      }, 100)
+        // Scroll to dental chart after selection
+        setTimeout(() => {
+          const dentalChartElement = document.getElementById('dental-chart-section')
+          if (dentalChartElement) {
+            dentalChartElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 100)
+      } catch (error) {
+        console.error('Error loading patient data:', error)
+        notify.error('فشل في تحميل بيانات المريض')
+      }
     }
   }
 
