@@ -402,23 +402,16 @@ class BackupService {
   async createSqliteBackupUsingAPI(backupPath) {
     return new Promise((resolve, reject) => {
       try {
-        const Database = require('better-sqlite3')
-
-        // Open backup database
-        const backupDb = new Database(backupPath)
-
-        // Use SQLite backup API - pass the destination database object, not the source
-        const backup = this.databaseService.db.backup(backupDb)
+        // Use SQLite backup API - pass the destination path as a string
+        const backup = this.databaseService.db.backup(backupPath)
 
         // Check if backup object has the expected methods
         if (typeof backup.step !== 'function') {
           throw new Error('SQLite backup API not available or incompatible')
         }
 
-        backup.step(-1) // Copy all pages
+        backup.step(-1) // Copy all pages at once
         backup.finish()
-
-        backupDb.close()
 
         console.log('✅ SQLite backup API completed successfully')
         resolve()
