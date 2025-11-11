@@ -2358,6 +2358,15 @@ class DatabaseService {
     this.db.pragma('temp_store = MEMORY')
 
     console.log('✅ Database connection reinitialized')
+
+    // Run migrations and ensure all tables exist after restoration
+    try {
+      console.log('🔄 Running migrations after reinitialize...')
+      this.runMigrations()
+      console.log('✅ Migrations completed after reinitialize')
+    } catch (error) {
+      console.error('❌ Error running migrations after reinitialize:', error)
+    }
   }
 
   // Check if database is open
@@ -3702,13 +3711,15 @@ class DatabaseService {
     try {
       console.log('🔍 [DEBUG] Checking if dental treatment tables exist...')
 
-      // First, try to fix the status constraint issue
-      await this.fixDentalTreatmentStatusConstraint()
-
-      // Check if dental_treatments table exists
+      // Check if dental_treatments table exists first
       const dentalTreatmentsTableExists = this.db.prepare(`
         SELECT name FROM sqlite_master WHERE type='table' AND name='dental_treatments'
       `).get()
+
+      // Only try to fix the status constraint if the table exists
+      if (dentalTreatmentsTableExists) {
+        await this.fixDentalTreatmentStatusConstraint()
+      }
 
       // Check if dental_treatment_images table exists
       const dentalTreatmentImagesTableExists = this.db.prepare(`

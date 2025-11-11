@@ -88,49 +88,49 @@ export default function EnhancedDashboard({
       }
 
       // Tab navigation (1-4)
-      if (['1', '2', '3', '4'].includes(event.key)) {
-        event.preventDefault()
-        const tabs = ['overview', 'quick-access', 'alerts', 'analytics']
-        const tabIndex = parseInt(event.key) - 1
-        if (tabs[tabIndex]) {
-          setActiveTab(tabs[tabIndex])
-        }
-      }
+      // if (['1', '2', '3', '4'].includes(event.key)) {
+      //   event.preventDefault()
+      //   const tabs = ['overview', 'quick-access', 'alerts', 'analytics']
+      //   const tabIndex = parseInt(event.key) - 1
+      //   if (tabs[tabIndex]) {
+      //     setActiveTab(tabs[tabIndex])
+      //   }
+      // }
 
       // استخدام الدالة المحسنة لمعالجة أحداث لوحة المفاتيح
       const enhanced = enhanceKeyboardEvent(event)
 
       // Quick actions shortcuts - ASD (دعم محسن للعربية والإنجليزية)
-      if (enhanced.mappedKey.toLowerCase() === 'a') {
-        enhanced.preventDefault()
-        onAddPatient?.()
-      } else if (enhanced.mappedKey.toLowerCase() === 's') {
-        enhanced.preventDefault()
-        onAddAppointment?.()
-      } else if (enhanced.mappedKey.toLowerCase() === 'd') {
-        enhanced.preventDefault()
-        onAddPayment?.()
-      }
+      // if (enhanced.mappedKey.toLowerCase() === 'a') {
+      //   enhanced.preventDefault()
+      //   onAddPatient?.()
+      // } else if (enhanced.mappedKey.toLowerCase() === 's') {
+      //   enhanced.preventDefault()
+      //   onAddAppointment?.()
+      // } else if (enhanced.mappedKey.toLowerCase() === 'd') {
+      //   enhanced.preventDefault()
+      //   onAddPayment?.()
+      // }
 
       // Refresh (R/ق)
-      if (enhanced.mappedKey.toLowerCase() === 'r') {
-        enhanced.preventDefault()
-        syncAllData()
-      }
+      // if (enhanced.mappedKey.toLowerCase() === 'r') {
+      //   enhanced.preventDefault()
+      //   syncAllData()
+      // }
 
       // Search (F/ب)
-      if (enhanced.mappedKey.toLowerCase() === 'f') {
-        enhanced.preventDefault()
-        setShowGlobalSearch(true)
-      }
+      // if (enhanced.mappedKey.toLowerCase() === 'f') {
+      //   enhanced.preventDefault()
+      //   setShowGlobalSearch(true)
+      // }
 
 
 
       // Refresh (R/ر)
-      if (enhanced.mappedKey.toLowerCase() === 'r') {
-        enhanced.preventDefault()
-        syncAllData()
-      }
+      // if (enhanced.mappedKey.toLowerCase() === 'r') {
+      //   enhanced.preventDefault()
+      //   syncAllData()
+      // }
     }
 
     window.addEventListener('keydown', handleKeyDown)
