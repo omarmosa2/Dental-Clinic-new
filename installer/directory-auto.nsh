@@ -7,7 +7,7 @@
 
 ; Ensure PRODUCT_NAME is defined
 !ifndef PRODUCT_NAME
-  !define PRODUCT_NAME "DentalClinic - agorracode"
+  !define PRODUCT_NAME "DentalClinic - DentaDesk"
 !endif
 
 ; Variables for directory monitoring

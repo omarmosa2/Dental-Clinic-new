@@ -1,5 +1,5 @@
 ; Modern UI Configuration for English Installer
-; Dental Clinic Management AgorraCode Installer
+; Dental Clinic Management DentaDeskCode Installer
 
 !include "MUI2.nsh"
 
@@ -115,15 +115,15 @@ FunctionEnd
 
 ; Custom Finish Page
 !macro CUSTOM_FINISH_PAGE
-  !define MUI_FINISHPAGE_RUN_TEXT "Run DentalClinic - agorracode"
+  !define MUI_FINISHPAGE_RUN_TEXT "Run DentalClinic - DentaDeskcode"
   !define MUI_FINISHPAGE_RUN_FUNCTION "LaunchApplication"
   !define MUI_FINISHPAGE_SHOWREADME_TEXT "View README file"
   !define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\README.txt"
   !define MUI_FINISHPAGE_LINK "Visit our website"
-  !define MUI_FINISHPAGE_LINK_LOCATION "https://agorracode.com"
+  !define MUI_FINISHPAGE_LINK_LOCATION "https://DentaDeskcode.com"
 !macroend
 
 ; Application Launch Function
 Function LaunchApplication
-  ExecShell "" "$INSTDIR\dentalclinic-agorracode.exe"
+  ExecShell "" "$INSTDIR\dentalclinic-DentaDeskcode.exe"
 FunctionEnd

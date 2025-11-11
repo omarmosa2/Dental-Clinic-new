@@ -19,6 +19,8 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux"
+  ,"clean": "rimraf dist build node_modules/.vite"
+
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
@@ -121,7 +123,7 @@
           ]
         }
       ],
-      "icon": "assets/icon.ico",
+  "icon": "assets/icon.ico",
       "requestedExecutionLevel": "asInvoker",
       "forceCodeSigning": false,
       "signAndEditExecutable": false
@@ -131,9 +133,9 @@
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
       "perMachine": true,
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico",
-      "installerHeaderIcon": "assets/icon.ico",
+  "installerIcon": "assets/icon.ico",
+  "uninstallerIcon": "assets/icon.ico",
+  "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "DentalClinic - agorracode",
@@ -151,12 +153,12 @@
     },
     "mac": {
       "target": "dmg",
-      "icon": "assets/icon_2.ico",
+  "icon": "assets/icon.ico",
       "category": "public.app-category.healthcare-fitness"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "assets/icon_2.ico",
+  "icon": "assets/icon.ico",
       "category": "Office"
     },
     "publish": null

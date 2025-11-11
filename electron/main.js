@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron')
-const { join } = require('path')
+const path = require('path')
+const { join } = path
 
 // ✅ معالج الأخطاء الشامل
 process.on('uncaughtException', (error) => {
@@ -43,9 +44,9 @@ let backupService = null
 let reportsService = null
 
 function createWindow() {
-   const iconPath = isDev
-    ? join(__dirname, '../assets/icon_2.ico') // أثناء التطوير
-    : path.join(process.resourcesPath, 'assets', 'icon_2.ico'); // بعد البناء
+  const iconPath = isDev
+   ? join(__dirname, '../assets/icon.ico') // أثناء التطوير
+   : join(process.resourcesPath, 'assets', 'icon.ico'); // بعد البناء
 
   mainWindow = new BrowserWindow({
     width: 1400,

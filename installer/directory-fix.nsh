@@ -5,7 +5,7 @@
 
 ; ❗ تأكد من تعريف اسم المنتج هنا إذا لم يكن معرفاً في مكان آخر
 !ifndef PRODUCT_NAME
-  !define PRODUCT_NAME "DentalClinic - agorracode"
+  !define PRODUCT_NAME "DentalClinic - DentaDesk"
 !endif
 
 !macro customInstall

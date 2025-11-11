@@ -1,5 +1,5 @@
 ; English Installer Customization for Dental Clinic Management System
-; Dental Clinic Management AgorraCode Installer
+; Dental Clinic Management DentaDeskCode Installer
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
@@ -11,17 +11,17 @@
 !include "directory-auto.nsh"
 
 ; Define Variables
-!define PRODUCT_NAME "DentalClinic - agorracode"
+!define PRODUCT_NAME "DentalClinic - DentaDeskcode"
 !define PRODUCT_VERSION "2.1"
-!define PRODUCT_PUBLISHER "AgorraCode"
-!define PRODUCT_WEB_SITE "https://agorracode.com"
-!define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\dentalclinic-agorracode.exe"
+!define PRODUCT_PUBLISHER "DentaDeskCode"
+!define PRODUCT_WEB_SITE "https://DentaDeskcode.com"
+!define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\dentalclinic-DentaDeskcode.exe"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_ROOT_KEY "HKLM"
 
 ; General Settings
 Name "${PRODUCT_NAME}"
-OutFile "DentalClinic-agorracode-v${PRODUCT_VERSION}-Setup.exe"
+OutFile "DentalClinic-DentaDeskcode-v${PRODUCT_VERSION}-Setup.exe"
 InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
 InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show
@@ -29,8 +29,8 @@ ShowUnInstDetails show
 
 ; Modern UI Settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "assets\icon_2.ico"
-!define MUI_UNICON "assets\icon_2.ico"
+!define MUI_ICON "assets\icon.ico"
+!define MUI_UNICON "assets\icon.ico"
 
 ; Welcome Page
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${PRODUCT_NAME} Setup Wizard"
@@ -59,7 +59,7 @@ ShowUnInstDetails show
 ; Finish Page
 !define MUI_FINISHPAGE_TITLE "${PRODUCT_NAME} Installation Complete"
 !define MUI_FINISHPAGE_TEXT "${PRODUCT_NAME} has been installed on your computer.$\r$\n$\r$\nClick Finish to close this wizard."
-!define MUI_FINISHPAGE_RUN "$INSTDIR\dentalclinic-agorracode.exe"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\dentalclinic-DentaDeskcode.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Run ${PRODUCT_NAME}"
 !define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\README.txt"
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "Show README file"

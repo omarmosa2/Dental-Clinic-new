@@ -26,7 +26,7 @@ function createWindow(): void {
       contextIsolation: true,
       enableRemoteModule: false,
     },
-    icon: join(__dirname, '../assets/icon.png'),
+  icon: join(__dirname, '../assets/icon.ico'),
     titleBarStyle: 'default',
     show: false,
   })
