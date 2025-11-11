@@ -121,7 +121,7 @@
           ]
         }
       ],
-      "icon": "assets/icon_2.ico",
+      "icon": "assets/icon.ico",
       "requestedExecutionLevel": "asInvoker",
       "forceCodeSigning": false,
       "signAndEditExecutable": false
@@ -131,9 +131,9 @@
       "allowToChangeInstallationDirectory": true,
       "allowElevation": true,
       "perMachine": true,
-      "installerIcon": "assets/icon_2.ico",
-      "uninstallerIcon": "assets/icon_2.ico",
-      "installerHeaderIcon": "assets/icon_2.ico",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
       "shortcutName": "DentalClinic - agorracode",

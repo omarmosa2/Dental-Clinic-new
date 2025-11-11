@@ -43,6 +43,10 @@ let backupService = null
 let reportsService = null
 
 function createWindow() {
+   const iconPath = isDev
+    ? join(__dirname, '../assets/icon_2.ico') // أثناء التطوير
+    : path.join(process.resourcesPath, 'assets', 'icon_2.ico'); // بعد البناء
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -75,7 +79,7 @@ function createWindow() {
     },
     show: false,
     title: 'DentalClinic - agorracode',
-    icon: join(__dirname, '../assets/icon_2.ico'),
+    icon: iconPath, // ✅ الحل هنا
     // ✅ إعدادات إضافية للنافذة
     backgroundColor: '#ffffff', // لون خلفية أبيض لتجنب الشاشة السوداء
     // ✅ تحسين الأداء
