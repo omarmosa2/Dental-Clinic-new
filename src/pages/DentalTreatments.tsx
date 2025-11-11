@@ -74,11 +74,39 @@ export default function DentalTreatments() {
   useRealTimeSync()
 
   useEffect(() => {
-    loadPatients()
-    loadPrescriptions()
-    loadToothTreatments() // تحميل جميع العلاجات لحساب العدد لكل مريض
-    loadAllToothTreatmentImages() // تحميل جميع الصور لحساب العدد لكل مريض
+    // ✅ FIX: Add error handling for initial data loading
+    const initializeData = async () => {
+      try {
+        console.log('🔄 [TREATMENTS_PAGE] Initializing data...')
+        await Promise.all([
+          loadPatients(),
+          loadPrescriptions(),
+          loadToothTreatments(), // تحميل جميع العلاجات لحساب العدد لكل مريض
+          loadAllToothTreatmentImages() // تحميل جميع الصور لحساب العدد لكل مريض
+        ])
+        console.log('✅ [TREATMENTS_PAGE] Data initialization completed')
+      } catch (error) {
+        console.error('❌ [TREATMENTS_PAGE] Error initializing data:', error)
+        notify.error('فشل في تحميل البيانات الأولية')
+      }
+    }
+    
+    initializeData()
   }, [loadPatients, loadPrescriptions, loadToothTreatments, loadAllToothTreatmentImages])
+
+  // ✅ FIX: Listen for treatment load errors
+  useEffect(() => {
+    const handleTreatmentLoadError = (event: CustomEvent) => {
+      console.error('❌ [TREATMENTS_PAGE] Treatment load error event:', event.detail)
+      notify.error(`فشل في تحميل العلاجات: ${event.detail.error}`)
+    }
+
+    window.addEventListener('treatment-load-error', handleTreatmentLoadError as EventListener)
+    
+    return () => {
+      window.removeEventListener('treatment-load-error', handleTreatmentLoadError as EventListener)
+    }
+  }, [])
 
   // Check for pre-selected patient from localStorage
   useEffect(() => {
@@ -285,21 +313,35 @@ export default function DentalTreatments() {
   }
 
   const handlePatientSelect = async (patientId: string) => {
+    console.log('🔄 [TREATMENTS_PAGE] Patient selected:', patientId)
+    
     setSelectedPatientId(patientId)
     setSelectedToothNumber(null)
     // إعادة تعيين التحديد المتعدد عند تغيير المريض
     setSelectedTeeth([])
     setIsMultiSelectMode(false)
+    
     // تحميل العلاجات والصور للمريض المحدد
     if (patientId) {
       try {
+        console.log('🔄 [TREATMENTS_PAGE] Loading data for patient:', patientId)
+        
+        // ✅ FIX: Add loading indicator
+        setIsLoading(true)
+        
         // تحميل العلاجات أولاً وانتظار اكتمالها
         await loadToothTreatmentsByPatient(patientId) // النظام الجديد
+        console.log('✅ [TREATMENTS_PAGE] Treatments loaded')
+        
         await loadAllToothTreatmentImagesByPatient(patientId) // تحميل الصور بالنظام الجديد وانتظار اكتمالها
+        console.log('✅ [TREATMENTS_PAGE] Images loaded')
 
         // تحميل إحصائيات الجلسات للمريض بعد تحميل العلاجات
         const sessionStats = await getPatientSessionStats(patientId)
         setPatientSessionStats(prev => ({ ...prev, [patientId]: sessionStats }))
+        console.log('✅ [TREATMENTS_PAGE] Session stats loaded')
+
+        setIsLoading(false)
 
         // Scroll to dental chart after selection
         setTimeout(() => {
@@ -308,9 +350,12 @@ export default function DentalTreatments() {
             dentalChartElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }
         }, 100)
+        
+        console.log('✅ [TREATMENTS_PAGE] All data loaded successfully for patient:', patientId)
       } catch (error) {
-        console.error('Error loading patient data:', error)
-        notify.error('فشل في تحميل بيانات المريض')
+        console.error('❌ [TREATMENTS_PAGE] Error loading patient data:', error)
+        setIsLoading(false)
+        notify.error('فشل في تحميل بيانات المريض. يرجى المحاولة مرة أخرى.')
       }
     }
   }

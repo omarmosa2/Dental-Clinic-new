@@ -130,10 +130,28 @@ export interface ElectronAPI {
     getAll: () => Promise<any[]>
     getByPatient: (patientId: string) => Promise<any[]>
     getByTooth: (patientId: string, toothNumber: number) => Promise<any[]>
+    getByAppointment: (appointmentId: string) => Promise<any[]>
     create: (treatment: any) => Promise<any>
     update: (id: string, treatment: any) => Promise<any>
     delete: (id: string) => Promise<boolean>
     reorder: (patientId: string, toothNumber: number, treatmentIds: string[]) => Promise<void>
+  }
+
+  // NEW: Tooth Treatment Images operations
+  toothTreatmentImages: {
+    getAll: () => Promise<any[]>
+    getByTreatment: (treatmentId: string) => Promise<any[]>
+    getByTooth: (patientId: string, toothNumber: number) => Promise<any[]>
+    create: (image: any) => Promise<any>
+    delete: (id: string) => Promise<boolean>
+  }
+
+  // Treatment Sessions operations
+  treatmentSessions: {
+    getByTreatment: (treatmentId: string) => Promise<any[]>
+    create: (session: any) => Promise<any>
+    update: (id: string, session: any) => Promise<any>
+    delete: (id: string) => Promise<boolean>
   }
 
   // Dental Treatment Images operations
@@ -146,7 +164,8 @@ export interface ElectronAPI {
 
   // File operations
   files: {
-    uploadDentalImage: (fileBuffer: ArrayBuffer, fileName: string, patientId: string, toothNumber: number) => Promise<string>
+    uploadDentalImage: (fileBuffer: ArrayBuffer, fileName: string, patientId: string, toothNumber: number, imageType: string, patientName: string, toothName: string) => Promise<string>
+    saveDentalImage: (base64Data: string, fileName: string, patientId: string, toothNumber: number, imageType: string, patientName: string, toothName: string) => Promise<string>
     getDentalImage: (imagePath: string) => Promise<string>
     checkImageExists: (imagePath: string) => Promise<boolean>
     openImagePreview: (imagePath: string) => Promise<void>
@@ -336,22 +355,30 @@ const electronAPI: ElectronAPI = {
   // NEW: Multiple treatments per tooth operations
   toothTreatments: {
     getAll: () => ipcRenderer.invoke('db:toothTreatments:getAll'),
-    getByPatient: (patientId) => ipcRenderer.invoke('db:toothTreatments:getByPatient', patientId),
-    getByTooth: (patientId, toothNumber) => ipcRenderer.invoke('db:toothTreatments:getByTooth', patientId, toothNumber),
-    getByAppointment: (appointmentId) => ipcRenderer.invoke('db:toothTreatments:getByAppointment', appointmentId),
-    create: (treatment) => ipcRenderer.invoke('db:toothTreatments:create', treatment),
-    update: (id, treatment) => ipcRenderer.invoke('db:toothTreatments:update', id, treatment),
-    delete: (id) => ipcRenderer.invoke('db:toothTreatments:delete', id),
-    reorder: (patientId, toothNumber, treatmentIds) => ipcRenderer.invoke('db:toothTreatments:reorder', patientId, toothNumber, treatmentIds),
+    getByPatient: (patientId: string) => ipcRenderer.invoke('db:toothTreatments:getByPatient', patientId),
+    getByTooth: (patientId: string, toothNumber: number) => ipcRenderer.invoke('db:toothTreatments:getByTooth', patientId, toothNumber),
+    getByAppointment: (appointmentId: string) => ipcRenderer.invoke('db:toothTreatments:getByAppointment', appointmentId),
+    create: (treatment: any) => ipcRenderer.invoke('db:toothTreatments:create', treatment),
+    update: (id: string, treatment: any) => ipcRenderer.invoke('db:toothTreatments:update', id, treatment),
+    delete: (id: string) => ipcRenderer.invoke('db:toothTreatments:delete', id),
+    reorder: (patientId: string, toothNumber: number, treatmentIds: string[]) => ipcRenderer.invoke('db:toothTreatments:reorder', patientId, toothNumber, treatmentIds),
   },
 
   // NEW: Tooth Treatment Images operations
   toothTreatmentImages: {
     getAll: () => ipcRenderer.invoke('db:toothTreatmentImages:getAll'),
-    getByTreatment: (treatmentId) => ipcRenderer.invoke('db:toothTreatmentImages:getByTreatment', treatmentId),
-    getByTooth: (patientId, toothNumber) => ipcRenderer.invoke('db:toothTreatmentImages:getByTooth', patientId, toothNumber),
-    create: (image) => ipcRenderer.invoke('db:toothTreatmentImages:create', image),
-    delete: (id) => ipcRenderer.invoke('db:toothTreatmentImages:delete', id),
+    getByTreatment: (treatmentId: string) => ipcRenderer.invoke('db:toothTreatmentImages:getByTreatment', treatmentId),
+    getByTooth: (patientId: string, toothNumber: number) => ipcRenderer.invoke('db:toothTreatmentImages:getByTooth', patientId, toothNumber),
+    create: (image: any) => ipcRenderer.invoke('db:toothTreatmentImages:create', image),
+    delete: (id: string) => ipcRenderer.invoke('db:toothTreatmentImages:delete', id),
+  },
+
+  // Treatment Sessions operations
+  treatmentSessions: {
+    getByTreatment: (treatmentId: string) => ipcRenderer.invoke('db:treatmentSessions:getByTreatment', treatmentId),
+    create: (session: any) => ipcRenderer.invoke('db:treatmentSessions:create', session),
+    update: (id: string, session: any) => ipcRenderer.invoke('db:treatmentSessions:update', id, session),
+    delete: (id: string) => ipcRenderer.invoke('db:treatmentSessions:delete', id),
   },
 
   dentalTreatmentImages: {

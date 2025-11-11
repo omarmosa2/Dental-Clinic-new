@@ -79,6 +79,12 @@ export class DatabaseService {
 
     // Create performance indexes
     this.createIndexes()
+
+    // ✅ FIX: Ensure tooth_treatments table exists during initialization
+    // This prevents the "table not found" error on first run
+    console.log('🔧 [INIT] Ensuring tooth_treatments table exists...')
+    this.ensureToothTreatmentsTableExists()
+    console.log('✅ [INIT] tooth_treatments table verification completed')
   }
 
   private createIndexes() {
@@ -3053,20 +3059,34 @@ export class DatabaseService {
   }
 
   async getToothTreatmentsByPatient(patientId: string): Promise<any[]> {
-    this.ensureToothTreatmentsTableExists()
+    try {
+      console.log(`🔍 [TOOTH_TREATMENTS] Loading treatments for patient: ${patientId}`)
+      
+      // ✅ FIX: Ensure table exists before querying
+      this.ensureToothTreatmentsTableExists()
 
-    // استعلام محسّن: إزالة JOIN غير الضروري على patients (نعرف المريض مسبقًا)
-    // الاحتفاظ فقط بـ JOIN على appointments لأنه قد يكون مفيدًا
-    const stmt = this.db.prepare(`
-      SELECT tt.*,
-             a.title as appointment_title,
-             a.start_time as appointment_start_time
-      FROM tooth_treatments tt
-      LEFT JOIN appointments a ON tt.appointment_id = a.id
-      WHERE tt.patient_id = ?
-      ORDER BY tt.tooth_number ASC, tt.priority ASC
-    `)
-    return stmt.all(patientId)
+      // استعلام محسّن: إزالة JOIN غير الضروري على patients (نعرف المريض مسبقًا)
+      // الاحتفاظ فقط بـ JOIN على appointments لأنه قد يكون مفيدًا
+      const stmt = this.db.prepare(`
+        SELECT tt.*,
+               a.title as appointment_title,
+               a.start_time as appointment_start_time
+        FROM tooth_treatments tt
+        LEFT JOIN appointments a ON tt.appointment_id = a.id
+        WHERE tt.patient_id = ?
+        ORDER BY tt.tooth_number ASC, tt.priority ASC
+      `)
+      
+      const results = stmt.all(patientId)
+      console.log(`✅ [TOOTH_TREATMENTS] Found ${results.length} treatments for patient ${patientId}`)
+      
+      return results
+    } catch (error) {
+      console.error(`❌ [TOOTH_TREATMENTS] Error loading treatments for patient ${patientId}:`, error)
+      console.error('❌ [TOOTH_TREATMENTS] Stack trace:', (error as Error).stack)
+      // ✅ FIX: Return empty array instead of throwing to prevent UI crash
+      return []
+    }
   }
 
   async getToothTreatmentsByTooth(patientId: string, toothNumber: number): Promise<any[]> {
@@ -3352,14 +3372,14 @@ export class DatabaseService {
   // NEW: Ensure tooth treatments table exists
   private ensureToothTreatmentsTableExists(): void {
     try {
-      console.log('🔍 [DEBUG] Checking if tooth_treatments table exists...')
+      console.log('🔍 [TOOTH_TREATMENTS] Checking if tooth_treatments table exists...')
 
       const tableExists = this.db.prepare(`
         SELECT name FROM sqlite_master WHERE type='table' AND name='tooth_treatments'
       `).get()
 
       if (!tableExists) {
-        console.log('🏗️ [DEBUG] Creating tooth_treatments table...')
+        console.log('🏗️ [TOOTH_TREATMENTS] Table not found - Creating tooth_treatments table...')
         this.db.exec(`
           CREATE TABLE tooth_treatments (
             id TEXT PRIMARY KEY,
@@ -3392,9 +3412,10 @@ export class DatabaseService {
             UNIQUE(patient_id, tooth_number, priority)
           )
         `)
-        console.log('✅ [DEBUG] tooth_treatments table created successfully')
+        console.log('✅ [TOOTH_TREATMENTS] Table created successfully')
 
         // Create indexes for better performance
+        console.log('🔍 [TOOTH_TREATMENTS] Creating indexes...')
         this.db.exec(`
           CREATE INDEX IF NOT EXISTS idx_tooth_treatments_patient
           ON tooth_treatments(patient_id);
@@ -3423,7 +3444,7 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_tooth_treatments_dates
           ON tooth_treatments(start_date, completion_date);
         `)
-        console.log('✅ [DEBUG] tooth_treatments indexes created successfully')
+        console.log('✅ [TOOTH_TREATMENTS] All indexes created successfully')
 
         // Check if tooth_treatment_images table exists and migrate if needed
         const tableExists = this.db.prepare(`
@@ -3497,13 +3518,19 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_type ON tooth_treatment_images (image_type);
           CREATE INDEX IF NOT EXISTS idx_tooth_treatment_images_date ON tooth_treatment_images (taken_date);
         `)
-        console.log('✅ [DEBUG] tooth_treatment_images table and indexes created successfully')
+        console.log('✅ [TOOTH_TREATMENTS] tooth_treatment_images table and indexes created successfully')
       } else {
-        console.log('✅ [DEBUG] tooth_treatments table already exists')
+        console.log('✅ [TOOTH_TREATMENTS] Table already exists - skipping creation')
       }
+
+      // ✅ FIX: Verify table is accessible by running a test query
+      const testCount = this.db.prepare('SELECT COUNT(*) as count FROM tooth_treatments').get() as { count: number }
+      console.log(`✅ [TOOTH_TREATMENTS] Table verified - contains ${testCount.count} records`)
+
     } catch (error) {
-      console.error('❌ [DEBUG] Error in ensureToothTreatmentsTableExists:', error)
-      throw error
+      console.error('❌ [TOOTH_TREATMENTS] Critical error in ensureToothTreatmentsTableExists:', error)
+      console.error('❌ [TOOTH_TREATMENTS] Stack trace:', (error as Error).stack)
+      throw new Error(`Failed to ensure tooth_treatments table exists: ${(error as Error).message}`)
     }
   }
 

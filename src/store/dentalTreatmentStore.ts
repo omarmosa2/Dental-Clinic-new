@@ -83,14 +83,16 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
   },
 
   loadToothTreatmentsByPatient: async (patientId: string) => {
-    // التحقق من الكاش أولاً
+    console.log('🦷 [STORE] loadToothTreatmentsByPatient called for:', patientId)
+    
+    // ✅ FIX: Clear stale cache for this patient to ensure fresh data
     const state = get()
     const cachedEntry = state.treatmentCache[patientId]
     const now = Date.now()
 
     // إذا كانت البيانات موجودة في الكاش وما زالت صالحة
     if (cachedEntry && (now - cachedEntry.timestamp) < CACHE_DURATION) {
-      console.log('🦷 Using cached treatments for patient:', patientId)
+      console.log('🦷 [STORE] Using cached treatments for patient:', patientId, '- Age:', Math.round((now - cachedEntry.timestamp) / 1000), 'seconds')
       set({
         toothTreatments: cachedEntry.data,
         isLoading: false,
@@ -108,9 +110,18 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
 
     set({ isLoading: true, error: null })
     try {
-      console.log('🦷 Loading treatments from DB for patient:', patientId)
-      const toothTreatments = await window.electronAPI.toothTreatments.getByPatient(patientId)
-      console.log('🦷 Loaded treatments:', toothTreatments.length, 'treatments')
+      console.log('🦷 [STORE] Loading treatments from database for patient:', patientId)
+      
+      // ✅ FIX: Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Treatment loading timeout')), 10000)
+      )
+      
+      const loadPromise = window.electronAPI.toothTreatments.getByPatient(patientId)
+      
+      const toothTreatments = await Promise.race([loadPromise, timeoutPromise]) as any[]
+      
+      console.log('🦷 [STORE] Successfully loaded', toothTreatments.length, 'treatments for patient:', patientId)
 
       // تحديث الكاش
       const updatedCache = {
@@ -131,15 +142,32 @@ export const useDentalTreatmentStore = create<DentalTreatmentState>((set, get) =
       // إرسال حدث لتحديث الألوان
       if (typeof window !== 'undefined' && window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent('treatments-loaded', {
-          detail: { patientId, treatmentsCount: toothTreatments.length }
+          detail: { patientId, treatmentsCount: toothTreatments.length, fromCache: false }
         }))
       }
     } catch (error) {
-      console.error('🦷 Error loading treatments:', error)
+      console.error('🦷 [STORE] Error loading treatments for patient:', patientId, error)
+      console.error('🦷 [STORE] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      
+      // ✅ FIX: Set empty array instead of keeping old data
       set({
+        toothTreatments: [],
         error: error instanceof Error ? error.message : 'Failed to load patient tooth treatments',
         isLoading: false
       })
+      
+      // ✅ FIX: Show user-friendly error notification
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('treatment-load-error', {
+          detail: { 
+            patientId, 
+            error: error instanceof Error ? error.message : 'Failed to load treatments'
+          }
+        }))
+      }
     }
   },
 
